@@ -1,0 +1,60 @@
+﻿{
+  "suite_id": "qwen-provider-uplift-suite",
+  "notes": [
+    "同一模型在 bare/basic/full harness profile 下的 provider uplift 示例",
+    "示例默认通过 qwen OpenAI-compatible provider 接入"
+  ],
+  "cases": [
+    {
+      "case_id": "readme-title-sync",
+      "task_spec_ref": "../tasks/requirement_change/qwen_provider_readme_uplift_task.json",
+      "notes": [
+        "同一模型、同一任务、只切换 harness profile"
+      ],
+      "run_matrix": [
+        {
+          "label": "qwen-bare",
+          "harness_profile": "bare",
+          "request": {
+            "agent_profile": {
+              "name": "qwen-plus",
+              "provider": "qwen",
+              "metadata": {
+                "model": "qwen-plus",
+                "api_key_env": "DASHSCOPE_API_KEY"
+              }
+            }
+          }
+        },
+        {
+          "label": "qwen-basic",
+          "harness_profile": "basic",
+          "request": {
+            "agent_profile": {
+              "name": "qwen-plus",
+              "provider": "qwen",
+              "metadata": {
+                "model": "qwen-plus",
+                "api_key_env": "DASHSCOPE_API_KEY"
+              }
+            }
+          }
+        },
+        {
+          "label": "qwen-full",
+          "harness_profile": "full",
+          "request": {
+            "agent_profile": {
+              "name": "qwen-plus",
+              "provider": "qwen",
+              "metadata": {
+                "model": "qwen-plus",
+                "api_key_env": "DASHSCOPE_API_KEY"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

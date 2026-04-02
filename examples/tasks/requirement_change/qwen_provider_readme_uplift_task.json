@@ -1,0 +1,45 @@
+﻿{
+  "task_id": "provider-readme-title-sync",
+  "title": "让 README 标题与目标文件保持一致",
+  "description": "请把 README.md 的第一行更新为 docs/target_title.txt 中给出的准确标题，其他文件不要改动。",
+  "task_type": "requirement_change",
+  "repo_source": {
+    "kind": "local_path",
+    "path_or_url": "../../repos/provider_readme_uplift_repo",
+    "checkout_mode": "copy"
+  },
+  "constraints": {
+    "editable_paths": ["README.md"],
+    "forbidden_paths": ["docs"],
+    "allow_network": false
+  },
+  "success_criteria": {
+    "required_verifier_steps": ["readme-title-check"],
+    "changed_files": ["README.md"]
+  },
+  "verifier_plan": {
+    "steps": [
+      {
+        "name": "readme-title-check",
+        "kind": "test",
+        "command": [
+          "python",
+          "-c",
+          "from pathlib import Path; target = Path('docs/target_title.txt').read_text(encoding='utf8').strip(); readme = Path('README.md').read_text(encoding='utf8').splitlines()[0].lstrip('#').strip(); raise SystemExit(0 if readme == target else 1)"
+        ]
+      }
+    ]
+  },
+  "benchmark_metadata": {
+    "tier": "curated",
+    "difficulty": "medium",
+    "tags": ["provider_uplift", "readme_sync"],
+    "harness_signals": ["repo_context", "verifier_feedback"],
+    "owner": "repo-harness-lab",
+    "source": "examples",
+    "notes": ["用于同模型 bare/basic/full provider 对比"]
+  },
+  "metadata": {
+    "example": "qwen_provider_uplift"
+  }
+}

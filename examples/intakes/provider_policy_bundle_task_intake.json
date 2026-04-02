@@ -1,0 +1,68 @@
+{
+  "task_id": "provider-policy-bundle-sync",
+  "title": "根据政策资料包同步公告与上线清单",
+  "business_request": "请根据 docs 下的政策资料包，更新 docs/policy_notice.md 和 ops/policy_rollout_checklist.md，使公告与上线清单保持一致。",
+  "task_type": "requirement_change",
+  "repo_source": {
+    "kind": "local_path",
+    "path_or_url": "../repos/provider_policy_bundle_uplift_repo",
+    "checkout_mode": "copy"
+  },
+  "context_paths": [
+    "docs/policy_scope.txt",
+    "docs/policy_timeline.txt",
+    "docs/policy_rollout.txt",
+    "docs/policy_exception.txt",
+    "docs/policy_support.txt"
+  ],
+  "editable_paths": [
+    "docs/policy_notice.md",
+    "ops/policy_rollout_checklist.md"
+  ],
+  "forbidden_paths": [
+    "README.md"
+  ],
+  "expected_changed_files": [
+    "docs/policy_notice.md",
+    "ops/policy_rollout_checklist.md"
+  ],
+  "behavioral_checks": [
+    "公告与清单中的 audience、effective date、exception 和 escalation 必须与资料包保持一致。"
+  ],
+  "acceptance_checks": [
+    {
+      "name": "policy-notice-check",
+      "kind": "test",
+      "command": [
+        "python",
+        "-c",
+        "from pathlib import Path; expected = '# Policy Update\\n- audience: workspace admins\\n- effective_date: 2026-05-01\\n- rollout_window: staged over 14 days\\n- exception: legacy EU tenants stay on previous policy until migration completes\\n- escalation: trust-ops@example.test\\n'; current = Path('docs/policy_notice.md').read_text(encoding='utf8'); raise SystemExit(0 if current == expected else 1)"
+      ]
+    },
+    {
+      "name": "policy-checklist-check",
+      "kind": "test",
+      "command": [
+        "python",
+        "-c",
+        "from pathlib import Path; expected = '# Rollout Checklist\\n- announce to workspace admins\\n- start staged rollout on 2026-05-01\\n- keep legacy EU tenants on previous policy until migration completes\\n- route escalations to trust-ops@example.test\\n'; current = Path('ops/policy_rollout_checklist.md').read_text(encoding='utf8'); raise SystemExit(0 if current == expected else 1)"
+      ]
+    }
+  ],
+  "benchmark": {
+    "tier": "open",
+    "difficulty": "hard",
+    "tags": [
+      "policy_sync",
+      "task_intake_demo"
+    ],
+    "owner": "repo-harness-lab",
+    "source": "examples",
+    "notes": [
+      "适合作为 intake 入口示例，用来展示 context packing 对多文档任务的帮助。"
+    ]
+  },
+  "metadata": {
+    "example": "provider_policy_bundle_task_intake"
+  }
+}

@@ -1,0 +1,64 @@
+﻿{
+  "task_id": "provider-release-input-sync",
+  "title": "根据任务输入同步发布配置与摘要",
+  "description": "请把 config/release.env 和 docs/release_summary.md 更新为任务输入里给出的准确发布信息。不要改动其他文件。",
+  "task_type": "requirement_change",
+  "repo_source": {
+    "kind": "local_path",
+    "path_or_url": "../../repos/provider_release_input_uplift_repo",
+    "checkout_mode": "copy"
+  },
+  "inputs": {
+    "items": [
+      {
+        "name": "release_spec",
+        "kind": "text",
+        "description": "发布目标，包含 release_version、release_channel、codename 三个字段",
+        "content": "release_version=2026.04.0\nrelease_channel=canary\ncodename=Paper Lantern"
+      }
+    ]
+  },
+  "constraints": {
+    "editable_paths": ["config/release.env", "docs/release_summary.md"],
+    "forbidden_paths": ["README.md"],
+    "allow_network": false
+  },
+  "success_criteria": {
+    "required_verifier_steps": ["release-env-check", "release-summary-check"],
+    "changed_files": ["config/release.env", "docs/release_summary.md"]
+  },
+  "verifier_plan": {
+    "steps": [
+      {
+        "name": "release-env-check",
+        "kind": "test",
+        "command": [
+          "python",
+          "-c",
+          "from pathlib import Path; expected = 'VERSION=2026.04.0\\nCHANNEL=canary\\n'; current = Path('config/release.env').read_text(encoding='utf8'); raise SystemExit(0 if current == expected else 1)"
+        ]
+      },
+      {
+        "name": "release-summary-check",
+        "kind": "test",
+        "command": [
+          "python",
+          "-c",
+          "from pathlib import Path; expected = '# Release 2026.04.0\\n- channel: canary\\n- codename: Paper Lantern\\n'; current = Path('docs/release_summary.md').read_text(encoding='utf8'); raise SystemExit(0 if current == expected else 1)"
+        ]
+      }
+    ]
+  },
+  "benchmark_metadata": {
+    "tier": "curated",
+    "difficulty": "medium",
+    "tags": ["provider_uplift", "release_sync"],
+    "harness_signals": ["task_inputs", "multi_file_edit", "verifier_plan"],
+    "owner": "repo-harness-lab",
+    "source": "examples",
+    "notes": ["用于展示 full profile 通过 task inputs 与 verifier plan 拉开与 basic 的差距"]
+  },
+  "metadata": {
+    "example": "qwen_provider_input_uplift"
+  }
+}

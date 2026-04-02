@@ -1,0 +1,43 @@
+# Python cache / build artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+build/
+dist/
+site/
+*.egg-info/
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE / OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local environment files
+.env
+.env.*
+*.local
+
+# Runtime outputs and temporary workspaces
+runtime/
+
+# Local-only collaboration / personal files
+CODEX_WORKING_PROTOCOL.md
+PROJECT_LOG.md
+INTERVIEW_QA.md

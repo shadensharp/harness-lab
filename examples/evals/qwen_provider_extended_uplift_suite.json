@@ -1,0 +1,165 @@
+{
+  "suite_id": "qwen-provider-extended-uplift-suite",
+  "notes": [
+    "????? bare/basic/full harness profile ???? provider uplift ???",
+    "?? repo_context ? task_inputs???????? repo context ????????"
+  ],
+  "cases": [
+    {
+      "case_id": "readme-title-sync",
+      "task_spec_ref": "../tasks/requirement_change/qwen_provider_readme_uplift_task.json",
+      "notes": [
+        "????????????? harness profile?",
+        "repo_context ???? bare ???? basic/full?"
+      ],
+      "run_matrix": [
+        {
+          "label": "qwen-bare",
+          "harness_profile": "bare",
+          "request": {
+            "agent_profile": {
+              "name": "qwen-plus",
+              "provider": "qwen",
+              "metadata": {
+                "model": "qwen-plus",
+                "api_key_env": "DASHSCOPE_API_KEY"
+              }
+            }
+          }
+        },
+        {
+          "label": "qwen-basic",
+          "harness_profile": "basic",
+          "request": {
+            "agent_profile": {
+              "name": "qwen-plus",
+              "provider": "qwen",
+              "metadata": {
+                "model": "qwen-plus",
+                "api_key_env": "DASHSCOPE_API_KEY"
+              }
+            }
+          }
+        },
+        {
+          "label": "qwen-full",
+          "harness_profile": "full",
+          "request": {
+            "agent_profile": {
+              "name": "qwen-plus",
+              "provider": "qwen",
+              "metadata": {
+                "model": "qwen-plus",
+                "api_key_env": "DASHSCOPE_API_KEY"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "release-input-sync",
+      "task_spec_ref": "../tasks/requirement_change/qwen_provider_release_input_uplift_task.json",
+      "notes": [
+        "????????????? harness profile?",
+        "task_inputs ? verifier_plan ???? full ???? bare/basic?"
+      ],
+      "run_matrix": [
+        {
+          "label": "qwen-bare",
+          "harness_profile": "bare",
+          "request": {
+            "agent_profile": {
+              "name": "qwen-plus",
+              "provider": "qwen",
+              "metadata": {
+                "model": "qwen-plus",
+                "api_key_env": "DASHSCOPE_API_KEY"
+              }
+            }
+          }
+        },
+        {
+          "label": "qwen-basic",
+          "harness_profile": "basic",
+          "request": {
+            "agent_profile": {
+              "name": "qwen-plus",
+              "provider": "qwen",
+              "metadata": {
+                "model": "qwen-plus",
+                "api_key_env": "DASHSCOPE_API_KEY"
+              }
+            }
+          }
+        },
+        {
+          "label": "qwen-full",
+          "harness_profile": "full",
+          "request": {
+            "agent_profile": {
+              "name": "qwen-plus",
+              "provider": "qwen",
+              "metadata": {
+                "model": "qwen-plus",
+                "api_key_env": "DASHSCOPE_API_KEY"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "policy-bundle-sync",
+      "task_spec_ref": "../tasks/requirement_change/qwen_provider_policy_bundle_uplift_task.json",
+      "notes": [
+        "????????????? harness profile?",
+        "?? repo context ??????? full ???? bare/basic?"
+      ],
+      "run_matrix": [
+        {
+          "label": "qwen-bare",
+          "harness_profile": "bare",
+          "request": {
+            "agent_profile": {
+              "name": "qwen-plus",
+              "provider": "qwen",
+              "metadata": {
+                "model": "qwen-plus",
+                "api_key_env": "DASHSCOPE_API_KEY"
+              }
+            }
+          }
+        },
+        {
+          "label": "qwen-basic",
+          "harness_profile": "basic",
+          "request": {
+            "agent_profile": {
+              "name": "qwen-plus",
+              "provider": "qwen",
+              "metadata": {
+                "model": "qwen-plus",
+                "api_key_env": "DASHSCOPE_API_KEY"
+              }
+            }
+          }
+        },
+        {
+          "label": "qwen-full",
+          "harness_profile": "full",
+          "request": {
+            "agent_profile": {
+              "name": "qwen-plus",
+              "provider": "qwen",
+              "metadata": {
+                "model": "qwen-plus",
+                "api_key_env": "DASHSCOPE_API_KEY"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

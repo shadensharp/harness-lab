@@ -1,0 +1,87 @@
+{
+  "task_id": "provider-policy-bundle-sync",
+  "title": "根据政策资料包同步公告与上线清单",
+  "description": "请根据 docs 下的政策资料包，更新 docs/policy_notice.md 和 ops/policy_rollout_checklist.md，使公告与上线清单保持一致。",
+  "task_type": "requirement_change",
+  "repo_source": {
+    "kind": "local_path",
+    "path_or_url": "../../repos/provider_policy_bundle_uplift_repo",
+    "checkout_mode": "copy"
+  },
+  "constraints": {
+    "editable_paths": [
+      "docs/policy_notice.md",
+      "ops/policy_rollout_checklist.md"
+    ],
+    "forbidden_paths": [
+      "README.md",
+      "docs/policy_scope.txt",
+      "docs/policy_timeline.txt",
+      "docs/policy_rollout.txt",
+      "docs/policy_exception.txt",
+      "docs/policy_support.txt"
+    ],
+    "allow_network": false
+  },
+  "success_criteria": {
+    "required_verifier_steps": [
+      "policy-notice-check",
+      "policy-checklist-check"
+    ],
+    "changed_files": [
+      "docs/policy_notice.md",
+      "ops/policy_rollout_checklist.md"
+    ]
+  },
+  "verifier_plan": {
+    "steps": [
+      {
+        "name": "policy-notice-check",
+        "kind": "test",
+        "command": [
+          "python",
+          "-c",
+          "from pathlib import Path; expected = '# Policy Update\\n- audience: workspace admins\\n- effective_date: 2026-05-01\\n- rollout_window: staged over 14 days\\n- exception: legacy EU tenants stay on previous policy until migration completes\\n- escalation: trust-ops@example.test\\n'; current = Path('docs/policy_notice.md').read_text(encoding='utf8'); raise SystemExit(0 if current == expected else 1)"
+        ]
+      },
+      {
+        "name": "policy-checklist-check",
+        "kind": "test",
+        "command": [
+          "python",
+          "-c",
+          "from pathlib import Path; expected = '# Rollout Checklist\\n- announce to workspace admins\\n- start staged rollout on 2026-05-01\\n- keep legacy EU tenants on previous policy until migration completes\\n- route escalations to trust-ops@example.test\\n'; current = Path('ops/policy_rollout_checklist.md').read_text(encoding='utf8'); raise SystemExit(0 if current == expected else 1)"
+        ]
+      }
+    ]
+  },
+  "benchmark_metadata": {
+    "tier": "curated",
+    "difficulty": "hard",
+    "tags": [
+      "provider_uplift",
+      "policy_sync"
+    ],
+    "harness_signals": [
+      "repo_context",
+      "multi_file_edit",
+      "verifier_plan"
+    ],
+    "owner": "repo-harness-lab",
+    "source": "examples",
+    "notes": [
+      "这组任务依赖 repo context，适合展示多文档上下文整理带来的 uplift。",
+      "basic 的 4-file context cap 会压缩关键材料，full 更容易把政策资料包一次带全。"
+    ]
+  },
+  "metadata": {
+    "example": "qwen_provider_policy_bundle_uplift",
+    "context_paths": [
+      "docs/policy_scope.txt",
+      "docs/policy_timeline.txt",
+      "docs/policy_rollout.txt",
+      "docs/policy_exception.txt",
+      "docs/policy_support.txt"
+    ]
+  }
+}

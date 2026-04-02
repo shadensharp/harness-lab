@@ -1,0 +1,19 @@
+[Unit]
+Description=Repo Harness Lab hosted portal
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=repoharness
+Group=repoharness
+WorkingDirectory=/srv/repo-harness-lab/app
+EnvironmentFile=/etc/repo-harness-lab/portal.env
+ExecStart=/srv/repo-harness-lab/app/examples/deployment/start_hosted_portal.sh
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

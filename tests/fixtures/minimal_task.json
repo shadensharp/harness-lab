@@ -1,0 +1,39 @@
+﻿{
+  "task_id": "task-001",
+  "title": "Seed the runtime baseline",
+  "description": "Create the first runnable runtime baseline.",
+  "task_type": "requirement_change",
+  "repo_source": {
+    "kind": "local_path",
+    "path_or_url": "E:/repo-harness-lab",
+    "checkout_mode": "copy"
+  },
+  "constraints": {
+    "allow_network": false,
+    "allowed_tools": ["shell_command"]
+  },
+  "success_criteria": {
+    "required_verifier_steps": ["unit-tests"]
+  },
+  "setup_steps": [],
+  "verifier_plan": {
+    "steps": [
+      {
+        "name": "unit-tests",
+        "kind": "test",
+        "command": ["python", "-m", "unittest", "discover", "-s", "tests/unit"]
+      }
+    ]
+  },
+  "benchmark_metadata": {
+    "tier": "curated",
+    "difficulty": "medium",
+    "tags": ["python", "cross_file", "repo_search"],
+    "harness_signals": ["context_management", "verifier_feedback"],
+    "owner": "codex",
+    "source": "internal_seed"
+  },
+  "metadata": {
+    "owner": "codex"
+  }
+}

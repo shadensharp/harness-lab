@@ -1,0 +1,71 @@
+{
+  "task_id": "provider-release-input-sync",
+  "title": "根据业务发布单同步配置与摘要",
+  "business_request": "请把 config/release.env 和 docs/release_summary.md 更新为业务输入里给出的准确发布信息。不要改动其他文件。",
+  "task_type": "requirement_change",
+  "repo_source": {
+    "kind": "local_path",
+    "path_or_url": "../repos/provider_release_input_uplift_repo",
+    "checkout_mode": "copy"
+  },
+  "business_inputs": {
+    "items": [
+      {
+        "name": "release_spec",
+        "kind": "text",
+        "description": "发布目标，包含 release_version、release_channel、codename 三个字段",
+        "content": "release_version=2026.04.0\nrelease_channel=canary\ncodename=Paper Lantern"
+      }
+    ]
+  },
+  "editable_paths": [
+    "config/release.env",
+    "docs/release_summary.md"
+  ],
+  "forbidden_paths": [
+    "README.md"
+  ],
+  "expected_changed_files": [
+    "config/release.env",
+    "docs/release_summary.md"
+  ],
+  "behavioral_checks": [
+    "配置与摘要中的版本号、发布渠道和代号必须保持一致"
+  ],
+  "acceptance_checks": [
+    {
+      "name": "release-env-check",
+      "kind": "test",
+      "command": [
+        "python",
+        "-c",
+        "from pathlib import Path; expected = 'VERSION=2026.04.0\\nCHANNEL=canary\\n'; current = Path('config/release.env').read_text(encoding='utf8'); raise SystemExit(0 if current == expected else 1)"
+      ]
+    },
+    {
+      "name": "release-summary-check",
+      "kind": "test",
+      "command": [
+        "python",
+        "-c",
+        "from pathlib import Path; expected = '# Release 2026.04.0\\n- channel: canary\\n- codename: Paper Lantern\\n'; current = Path('docs/release_summary.md').read_text(encoding='utf8'); raise SystemExit(0 if current == expected else 1)"
+      ]
+    }
+  ],
+  "benchmark": {
+    "tier": "open",
+    "difficulty": "medium",
+    "tags": [
+      "release_sync",
+      "task_intake_demo"
+    ],
+    "owner": "repo-harness-lab",
+    "source": "examples",
+    "notes": [
+      "用于展示业务 intake 如何稳定转换成 TaskSpec scaffold"
+    ]
+  },
+  "metadata": {
+    "example": "provider_release_input_task_intake"
+  }
+}

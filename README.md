@@ -23,12 +23,6 @@
 - 同模型多档对比：支持 `bare / basic / full` 三档 harness profile
 - 可浏览报告：支持 run report、comparison、eval、dashboard 和 live portal
 
-## 适合谁看
-
-- 想做仓库任务 Agent / Coding Agent 的工程师
-- 做 Agent eval、平台、验收链路的工程师
-- 想把“业务信息工程化交付给模型”这件事做扎实的人
-
 ## 环境要求
 
 - Python `3.11+`
@@ -104,21 +98,3 @@ repo-harness-lab render-portal --limit 20
 python -m unittest discover -s tests/unit -p "test_*.py"
 python -m compileall src tests examples
 ```
-
-## GitHub 上传建议
-
-这个仓库有一部分内容只适合本地使用，不建议公开上传，已经在 `.gitignore` 里排除了：
-
-- `runtime/` 下的运行产物、报告和临时工作区
-- `CODEX_WORKING_PROTOCOL.md`
-- `PROJECT_LOG.md`
-- `INTERVIEW_QA.md`
-- 本地环境文件、虚拟环境、缓存文件
-
-这意味着公开仓库会保留项目本身、示例、测试和公开设计文档，但不会带上你的本地协作规则、个人面试口径和历史运行痕迹。
-
-## 许可说明
-
-当前仓库还没有附带开源许可证。
-
-如果你准备公开开源，建议在上传前补一个你明确接受的 `LICENSE`；如果暂时只想公开代码但不授予开源使用权，也可以先不加。

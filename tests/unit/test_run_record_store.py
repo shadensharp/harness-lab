@@ -117,8 +117,8 @@ class RunRecordStoreTests(unittest.TestCase):
                                 "trials": [
                                     {
                                         "trial_id": "case-001-trial-1",
-                                        "harness_profile": "basic",
-                                        "notes": ["basic-pass"],
+                        "harness_profile": "custom",
+                        "notes": ["custom-pass"],
                                         "run_summary": {
                                             "run_id": "run-left",
                                             "task_id": "task-001",
@@ -147,15 +147,15 @@ class RunRecordStoreTests(unittest.TestCase):
                             {
                                 "name": "profile_summary",
                                 "items": {
-                                    "bare": {"pass_rate": 0.0, "average_duration_ms": 2400, "passed_trials": 0, "total_trials": 1},
-                                    "basic": {"pass_rate": 1.0, "average_duration_ms": 1200, "passed_trials": 1, "total_trials": 1}
+                                    "current": {"pass_rate": 0.0, "average_duration_ms": 2400, "passed_trials": 0, "total_trials": 1},
+                                    "custom": {"pass_rate": 1.0, "average_duration_ms": 1200, "passed_trials": 1, "total_trials": 1}
                                 }
                             },
                             {
                                 "name": "profile_uplift",
                                 "items": {
-                                    "baseline_profile": "bare",
-                                    "basic": {"pass_rate": 1.0, "pass_rate_delta": 1.0, "average_duration_ms": 1200, "average_duration_delta_ms": -1200, "passed_trials": 1, "total_trials": 1}
+                                    "baseline_profile": "current",
+                                    "custom": {"pass_rate": 1.0, "pass_rate_delta": 1.0, "average_duration_ms": 1200, "average_duration_delta_ms": -1200, "passed_trials": 1, "total_trials": 1}
                                 }
                             }
                         ]
@@ -231,10 +231,10 @@ class RunRecordStoreTests(unittest.TestCase):
             suite_alpha = next(report for report in eval_reports if report.suite_id == "suite-alpha")
             portal_eval = next(report for report in eval_reports if report.suite_id == "demo-portal-archive-suite")
             self.assertEqual(suite_alpha.task_tags, ("cross_file",))
-            self.assertEqual(suite_alpha.case_results[0].trials[0].label, "basic-pass")
-            self.assertEqual(suite_alpha.case_results[0].trials[0].harness_profile, "basic")
+            self.assertEqual(suite_alpha.case_results[0].trials[0].label, "custom-pass")
+            self.assertEqual(suite_alpha.case_results[0].trials[0].harness_profile, "custom")
             self.assertEqual(suite_alpha.case_results[0].trials[0].run_summary.run_id, "run-left")
-            self.assertEqual(suite_alpha.comparison_views["profile_uplift"]["baseline_profile"], "bare")
+            self.assertEqual(suite_alpha.comparison_views["profile_uplift"]["baseline_profile"], "current")
             self.assertTrue(portal_eval.is_portal_live)
             self.assertTrue(any(report.suite_id == "suite-json-only" for report in eval_reports))
 

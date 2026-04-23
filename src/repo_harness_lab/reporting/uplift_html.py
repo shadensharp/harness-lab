@@ -23,6 +23,7 @@ from repo_harness_lab.shared.profile_comparisons import (
     comparison_map_by_target_profile,
     default_baseline_profile,
 )
+from repo_harness_lab.shared.portal_story import PORTAL_STORY_TITLES
 from repo_harness_lab.storage.run_store import StoredEvalCase, StoredEvalReport, StoredEvalTrial, StoredRunComparison, StoredRunRecord
 
 
@@ -42,14 +43,16 @@ class UpliftHtmlReporter:
         archived_eval_reports = [report for report in eval_reports if getattr(report, "is_portal_live", False)]
         focus = self._pick_focus_case(featured_eval_reports)
         focus_entry = self._empty("当前还没有可展示的真实任务。")
-        focus_results = self._empty("当前还没有 bare / basic / full 三档结果。")
+        focus_results = self._empty("当前还没有可展示的当前结果。")
         focus_actions = ""
+        focus_uses_profile_matrix = False
         if focus is not None:
             report, case = focus
             summary = self._mapping(case.summary)
+            focus_uses_profile_matrix = self._report_uses_profile_matrix(report)
             task_title, task_description = self._load_task_brief(summary, case.case_id, case.trials)
             model_label = self._model_label_from_trials(case.trials)
-            baseline_profile = str(self._mapping(report.comparison_views.get("profile_uplift")).get("baseline_profile", "bare") or "bare")
+            baseline_profile = str(self._mapping(report.comparison_views.get("profile_uplift")).get("baseline_profile", "current") or "current")
             focus_entry = (
                 self._render_task_input_box(
                     title=task_title,
@@ -83,14 +86,14 @@ class UpliftHtmlReporter:
                 '<div class="page simple-page">',
                 self._hero(
                     title="同模型 Harness 结果页",
-                    subtitle="查看用户任务、模型和 bare / basic / full 三档结果。",
-                    badges=(f"正式套件：{len(featured_eval_reports)}", f"模型：{self._dashboard_model_label(featured_eval_reports)}", "档位：bare/basic/full"),
+                    subtitle="查看用户任务、模型和多次运行结果。" if focus_uses_profile_matrix else "查看用户任务、模型和 current 结果，必要时再对照基线报告。",
+                    badges=(f"正式套件：{len(featured_eval_reports)}", f"模型：{self._dashboard_model_label(featured_eval_reports)}", "模式：multi-run" if focus_uses_profile_matrix else "模式：current"),
                 ),
-                self._panel("三档说明", self._profile_explainer(), subtitle="同一模型、同一任务、同一验收，只改变 harness 额外交给模型的内容。", section_id="explain"),
-                self._panel("用户任务", focus_entry + focus_actions, subtitle="当前聚焦任务。", section_id="entry"),
-                self._panel("三档结果", focus_results, subtitle="直接对比三种 harness 程度的处理结果。", section_id="proof"),
+                self._panel(PORTAL_STORY_TITLES["decision"], self._profile_explainer() if focus_uses_profile_matrix else self._current_mode_explainer(), subtitle="同一模型、同一任务、同一验收，只改变 harness 额外交给模型的内容。" if focus_uses_profile_matrix else "主线只跑 current 单次配置；比较时再看基线差异。", section_id="explain"),
+                self._panel(PORTAL_STORY_TITLES["task"], focus_entry + focus_actions, subtitle="当前聚焦任务。", section_id="entry"),
+                self._panel(PORTAL_STORY_TITLES["result"], focus_results, subtitle="直接对比多次运行的处理结果。" if focus_uses_profile_matrix else "这里展示 current 配置下的真实结果。", section_id="proof"),
                 self._details_panel(
-                    "更多证据",
+                    PORTAL_STORY_TITLES["details"],
                     self._panel("套件概览", suite_cards if featured_eval_reports else self._empty("当前还没有可展示的套件。"), subtitle="已生成的正式评测套件。")
                     + self._panel("失败汇总", failure_cards if failure_cards else self._empty("当前没有失败聚合结果。"), subtitle="需要排查失败时再展开。")
                     + self._panel("推荐任务", recommended_cards if recommended_cards else self._empty("当前没有推荐任务。"), subtitle="保留推荐理由，但不再占首屏高度。")
@@ -107,19 +110,28 @@ class UpliftHtmlReporter:
     def _profile_explainer(self) -> str:
         return self._list_block(
             (
-                "Bare：只给任务文本和最基础的仓库结构，不额外注入任务输入或验收步骤。",
-                "Basic：在 Bare 基础上，再补选中的仓库上下文文件。",
-                "Full：在 Basic 基础上，再补结构化任务输入和 verifier 步骤。",
+                "Current：当前主线运行，默认带完整仓库树、上下文文件、任务输入和 verifier 步骤。",
+                "Custom：用户或套件显式覆盖的运行配置，用来做附加对照。",
                 "控制变量固定：同一模型、同一任务、同一仓库边界、同一输出格式；只改变 harness 交付给模型的内容。",
             ),
-            empty_text="当前没有三档说明。",
+            empty_text="当前没有多运行说明。",
+        )
+
+    def _current_mode_explainer(self) -> str:
+        return self._list_block(
+            (
+                "主线只跑一次 current 配置，不再默认展开历史矩阵。",
+                "current 会带完整仓库树、上下文文件、任务输入和 verifier 步骤。",
+                "如果要比较效果，直接对照历史基线报告或用户手工指定的基线报告。",
+            ),
+            empty_text="当前没有基线说明。",
         )
 
     def _render_suite_card(self, report: StoredEvalReport) -> str:
         profile_uplift = self._mapping(report.comparison_views.get("profile_uplift"))
         baseline = str(profile_uplift.get("baseline_profile", "n/a"))
-        basic = self._mapping(profile_uplift.get("basic"))
-        full = self._mapping(profile_uplift.get("full"))
+        current = self._mapping(profile_uplift.get("current"))
+        custom = self._mapping(profile_uplift.get("custom"))
         return ''.join(
             [
                 '<article class="card">',
@@ -130,8 +142,8 @@ class UpliftHtmlReporter:
                 f'<h3>{escape(report.title)}</h3>',
                 '<div class="facts">',
                 f'<span>任务数：{report.case_count}</span>',
-                f'<span>basic：{escape(self._delta_ratio(basic.get("pass_rate_delta")))}</span>',
-                f'<span>full：{escape(self._delta_ratio(full.get("pass_rate_delta")))}</span>',
+                f'<span>current：{escape(self._delta_ratio(current.get("pass_rate_delta")))}</span>',
+                f'<span>custom：{escape(self._delta_ratio(custom.get("pass_rate_delta")))}</span>',
                 '</div>',
                 f'<p class="muted">标签：{escape(self._join_values(report.task_tags))}</p>',
                 f'<p class="muted">信号：{escape(self._join_values(report.harness_signals))}</p>',
@@ -188,7 +200,7 @@ class UpliftHtmlReporter:
         *,
         baseline_profile: str | None = None,
     ) -> tuple[tuple[str, str, tuple[ProfileRunComparison, ...]], ...]:
-        ordered_trials = sorted(trials, key=lambda trial: self._profile_sort_key(trial.harness_profile, baseline_profile or 'bare'))
+        ordered_trials = sorted(trials, key=lambda trial: self._profile_sort_key(trial.harness_profile, baseline_profile or 'current'))
         profile_runs = {
             str(trial.harness_profile): trial.run_summary.run_id
             for trial in ordered_trials
@@ -425,7 +437,7 @@ class UpliftHtmlReporter:
             ])
         if profile_cards:
             parts.extend([
-                '<h4>三档额外交付</h4>',
+                '<h4>本次额外交付</h4>',
                 self._card_grid((profile_cards,)),
             ])
         if delta_cards:
@@ -439,24 +451,24 @@ class UpliftHtmlReporter:
         shared = self._mapping(summary_mapping.get('shared_task_information'))
         if not shared:
             return ()
-        items = ['三档都收到上面这条完全相同的任务正文。']
+        items = ['各运行都收到上面这条完全相同的任务正文。']
         editable = [str(item) for item in shared.get('editable_paths', ()) if str(item)]
         forbidden = [str(item) for item in shared.get('forbidden_paths', ()) if str(item)]
         changed = [str(item) for item in shared.get('expected_changed_files', ()) if str(item)]
         checks = [str(item) for item in shared.get('behavioral_checks', ()) if str(item)]
         verifier_steps = [str(item) for item in shared.get('required_verifier_steps', ()) if str(item)]
         if editable:
-            items.append(f"三档的可改范围相同：{', '.join(editable)}")
+            items.append(f"各运行的可改范围相同：{', '.join(editable)}")
         if forbidden:
-            items.append(f"三档的禁改范围相同：{', '.join(forbidden)}")
+            items.append(f"各运行的禁改范围相同：{', '.join(forbidden)}")
         if changed:
-            items.append(f"三档的目标改动文件相同：{', '.join(changed)}")
+            items.append(f"各运行的目标改动文件相同：{', '.join(changed)}")
         if checks:
-            items.append(f"三档的行为检查相同：{'; '.join(checks)}")
+            items.append(f"各运行的行为检查相同：{'; '.join(checks)}")
         if verifier_steps:
-            items.append(f"三档看到的必过步骤名称相同：{', '.join(verifier_steps)}")
+            items.append(f"各运行看到的必过步骤名称相同：{', '.join(verifier_steps)}")
         if shared.get('response_contract'):
-            items.append('三档的输出格式要求相同：只能返回 JSON summary + writes。')
+            items.append('各运行的输出格式要求相同：只能返回 JSON summary + writes。')
         return tuple(items)
 
     def _summary_profile_matrix(self, summary_mapping: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
@@ -501,20 +513,20 @@ class UpliftHtmlReporter:
         normalized = ' '.join(str(text).split())
         if not normalized:
             return ''
-        if normalized == 'The same user task title and description go to bare/basic/full.':
-            return '三档收到的是同一条用户任务标题和说明。'
+        if normalized == 'The current run receives the same task title and description.':
+            return '当前运行收到的是同一条用户任务标题和说明。'
         if normalized.startswith('Same editable paths: '):
-            return '三档可改范围相同：' + normalized.removeprefix('Same editable paths: ')
+            return '各运行可改范围相同：' + normalized.removeprefix('Same editable paths: ')
         if normalized.startswith('Same forbidden paths: '):
-            return '三档禁改范围相同：' + normalized.removeprefix('Same forbidden paths: ')
+            return '各运行禁改范围相同：' + normalized.removeprefix('Same forbidden paths: ')
         if normalized.startswith('Same expected changed files: '):
-            return '三档目标改动文件相同：' + normalized.removeprefix('Same expected changed files: ')
+            return '各运行目标改动文件相同：' + normalized.removeprefix('Same expected changed files: ')
         if normalized.startswith('Same behavioral checks: '):
-            return '三档行为检查相同：' + normalized.removeprefix('Same behavioral checks: ')
+            return '各运行行为检查相同：' + normalized.removeprefix('Same behavioral checks: ')
         if normalized.startswith('Same required verifier step names: '):
-            return '三档必过步骤名称相同：' + normalized.removeprefix('Same required verifier step names: ')
+            return '各运行必过步骤名称相同：' + normalized.removeprefix('Same required verifier step names: ')
         if normalized == 'Same response contract: JSON only with summary and writes.':
-            return '三档输出格式相同：只能返回 JSON summary + writes。'
+            return '各运行输出格式相同：只能返回 JSON summary + writes。'
         if normalized.startswith('Extra harness material: repository tree only'):
             return normalized.replace('Extra harness material: repository tree only', '额外 harness 材料：只有仓库树')
         if normalized.startswith('Repository tree attached'):
@@ -631,13 +643,13 @@ class UpliftHtmlReporter:
 
     def _profile_sort_key(self, profile_name: str, baseline_profile: str) -> tuple[int, str]:
         order: list[str] = []
-        for item in (baseline_profile, 'bare', 'basic', 'full'):
+        for item in (baseline_profile, 'current', 'custom'):
             if item and item not in order:
                 order.append(item)
         return (order.index(profile_name), profile_name) if profile_name in order else (len(order), profile_name)
 
     def _profile_label(self, profile_name: str) -> str:
-        return {'bare': 'Bare 裸跑', 'basic': 'Basic 仓库上下文', 'full': 'Full 完整 Harness'}.get(profile_name, profile_name)
+        return {'current': 'Current 当前配置', 'custom': 'Custom 自定义配置'}.get(profile_name, profile_name)
 
     def _status_label(self, status: str) -> str:
         return {'succeeded': '成功', 'failed': '失败', 'error': '错误', 'running': '运行中', 'pending': '等待中', 'skipped': '已跳过'}.get(status, status)
@@ -692,6 +704,16 @@ class UpliftHtmlReporter:
             return 'n/a'
         milliseconds = int(round(float(value)))
         return f'{milliseconds} ms' if milliseconds < 1000 else f'{milliseconds / 1000:.2f} s'
+
+    def _report_uses_profile_matrix(self, report: StoredEvalReport) -> bool:
+        profiles = {
+            str(trial.harness_profile)
+            for case in report.case_results
+            for trial in case.trials
+            if trial.run_summary is not None
+        }
+        supported_profiles = {'current', 'custom'}
+        return len(profiles) > 1 and bool(profiles & supported_profiles)
 
     def _safe_file_stem(self, value: str) -> str:
         sanitized = ''.join(char if char.isalnum() or char in '._-' else '-' for char in value).strip('-')

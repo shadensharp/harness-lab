@@ -9,9 +9,7 @@ COMPARISON_MODE_UPLIFT = "uplift"
 COMPARISON_MODE_FAIR = "fair"
 
 _KNOWN_PROFILE_ORDER = (
-    HarnessProfile.BARE.value,
-    HarnessProfile.BASIC.value,
-    HarnessProfile.FULL.value,
+    HarnessProfile.CURRENT.value,
     HarnessProfile.CUSTOM.value,
 )
 
@@ -29,8 +27,8 @@ def default_baseline_profile(profile_names: Iterable[str]) -> str:
     ordered = ordered_profiles(profile_names)
     if not ordered:
         return HarnessProfile.CUSTOM.value
-    if HarnessProfile.BARE.value in ordered:
-        return HarnessProfile.BARE.value
+    if HarnessProfile.CURRENT.value in ordered:
+        return HarnessProfile.CURRENT.value
     return ordered[0]
 
 

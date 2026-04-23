@@ -351,6 +351,9 @@ def _report_category_and_title(report_id: str) -> tuple[str, str]:
     elif report_id.startswith("intake-preview-"):
         category = "intake"
         title = f"任务入口预览 - {report_id.removeprefix('intake-preview-')}"
+    elif report_id.startswith("official-swebench-"):
+        category = "official_benchmark"
+        title = f"SWE-bench 官方评测 - {report_id.removeprefix('official-swebench-')}"
 
     return category, title
 

@@ -1,4 +1,4 @@
-# Python cache / build artifacts
+﻿# Python cache / build artifacts
 __pycache__/
 *.py[cod]
 *.pyo
@@ -35,9 +35,10 @@ Thumbs.db
 *.local
 
 # Runtime outputs and temporary workspaces
-runtime/
+/runtime/
 
 # Local-only collaboration / personal files
+.superpowers/
 CODEX_WORKING_PROTOCOL.md
 PROJECT_LOG.md
-INTERVIEW_QA.md
+PROJECT_SUMMARY.md

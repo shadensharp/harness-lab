@@ -71,7 +71,7 @@
     "source": "examples",
     "notes": [
       "这组任务依赖 repo context，适合展示多文档上下文整理带来的 uplift。",
-      "basic 的 4-file context cap 会压缩关键材料，full 更容易把政策资料包一次带全。"
+      "current 与 custom 的上下文和 verifier 覆盖差异，会影响这题的完成度。"
     ]
   },
   "metadata": {

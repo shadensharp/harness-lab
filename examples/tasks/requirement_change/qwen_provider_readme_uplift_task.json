@@ -37,7 +37,7 @@
     "harness_signals": ["repo_context", "verifier_feedback"],
     "owner": "repo-harness-lab",
     "source": "examples",
-    "notes": ["用于同模型 bare/basic/full provider 对比"]
+    "notes": ["用于同模型 current/custom provider 对比"]
   },
   "metadata": {
     "example": "qwen_provider_uplift"

@@ -1,56 +1,47 @@
 {
-  "suite_id": "qwen-provider-extended-uplift-suite",
+  "suite_id": "openai-provider-extended-uplift-suite",
   "notes": [
-    "????? bare/basic/full harness profile ???? provider uplift ???",
-    "?? repo_context ? task_inputs???????? repo context ????????"
+    "同一模型在 current 与 custom 运行配置下的扩展 provider 对照片段",
+    "覆盖 repo_context、task_inputs 和多文件同步三类场景",
+    "需要设置环境变量：OPENAI_API_KEY=你的_API_KEY，OPENAI_BASE_URL=你的_中转地址"
   ],
   "cases": [
     {
       "case_id": "readme-title-sync",
       "task_spec_ref": "../tasks/requirement_change/qwen_provider_readme_uplift_task.json",
       "notes": [
-        "????????????? harness profile?",
-        "repo_context ???? bare ???? basic/full?"
+        "同一模型、同一任务、只切换运行配置",
+        "repo_context 信号应让 current 明显强于 custom"
       ],
       "run_matrix": [
         {
-          "label": "qwen-bare",
-          "harness_profile": "bare",
+          "label": "openai-current",
+          "harness_profile": "current",
           "request": {
             "agent_profile": {
-              "name": "qwen-plus",
-              "provider": "qwen",
+              "name": "gpt-4",
+              "provider": "openai",
               "metadata": {
-                "model": "qwen-plus",
-                "api_key_env": "DASHSCOPE_API_KEY"
+                "model": "gpt-5.1",
+                "api_key_env": "OPENAI_API_KEY"
               }
             }
           }
         },
         {
-          "label": "qwen-basic",
-          "harness_profile": "basic",
+          "label": "openai-custom",
+          "harness_profile": "custom",
           "request": {
             "agent_profile": {
-              "name": "qwen-plus",
-              "provider": "qwen",
+              "name": "gpt-4",
+              "provider": "openai",
               "metadata": {
-                "model": "qwen-plus",
-                "api_key_env": "DASHSCOPE_API_KEY"
-              }
-            }
-          }
-        },
-        {
-          "label": "qwen-full",
-          "harness_profile": "full",
-          "request": {
-            "agent_profile": {
-              "name": "qwen-plus",
-              "provider": "qwen",
-              "metadata": {
-                "model": "qwen-plus",
-                "api_key_env": "DASHSCOPE_API_KEY"
+                "model": "gpt-5.1",
+                "api_key_env": "OPENAI_API_KEY",
+                "include_inputs": false,
+                "include_verifier_plan": false,
+                "max_context_files": 4,
+                "max_file_chars": 4000
               }
             }
           }
@@ -61,48 +52,38 @@
       "case_id": "release-input-sync",
       "task_spec_ref": "../tasks/requirement_change/qwen_provider_release_input_uplift_task.json",
       "notes": [
-        "????????????? harness profile?",
-        "task_inputs ? verifier_plan ???? full ???? bare/basic?"
+        "同一模型、同一任务、只切换运行配置",
+        "任务输入与 verifier 信号应让 current 明显强于 custom"
       ],
       "run_matrix": [
         {
-          "label": "qwen-bare",
-          "harness_profile": "bare",
+          "label": "openai-current",
+          "harness_profile": "current",
           "request": {
             "agent_profile": {
-              "name": "qwen-plus",
-              "provider": "qwen",
+              "name": "gpt-4",
+              "provider": "openai",
               "metadata": {
-                "model": "qwen-plus",
-                "api_key_env": "DASHSCOPE_API_KEY"
+                "model": "gpt-5.1",
+                "api_key_env": "OPENAI_API_KEY"
               }
             }
           }
         },
         {
-          "label": "qwen-basic",
-          "harness_profile": "basic",
+          "label": "openai-custom",
+          "harness_profile": "custom",
           "request": {
             "agent_profile": {
-              "name": "qwen-plus",
-              "provider": "qwen",
+              "name": "gpt-4",
+              "provider": "openai",
               "metadata": {
-                "model": "qwen-plus",
-                "api_key_env": "DASHSCOPE_API_KEY"
-              }
-            }
-          }
-        },
-        {
-          "label": "qwen-full",
-          "harness_profile": "full",
-          "request": {
-            "agent_profile": {
-              "name": "qwen-plus",
-              "provider": "qwen",
-              "metadata": {
-                "model": "qwen-plus",
-                "api_key_env": "DASHSCOPE_API_KEY"
+                "model": "gpt-5.1",
+                "api_key_env": "OPENAI_API_KEY",
+                "include_inputs": false,
+                "include_verifier_plan": false,
+                "max_context_files": 4,
+                "max_file_chars": 4000
               }
             }
           }
@@ -113,48 +94,38 @@
       "case_id": "policy-bundle-sync",
       "task_spec_ref": "../tasks/requirement_change/qwen_provider_policy_bundle_uplift_task.json",
       "notes": [
-        "????????????? harness profile?",
-        "?? repo context ??????? full ???? bare/basic?"
+        "同一模型、同一任务、只切换运行配置",
+        "多文件同步与上下文覆盖应让 current 明显强于 custom"
       ],
       "run_matrix": [
         {
-          "label": "qwen-bare",
-          "harness_profile": "bare",
+          "label": "openai-current",
+          "harness_profile": "current",
           "request": {
             "agent_profile": {
-              "name": "qwen-plus",
-              "provider": "qwen",
+              "name": "gpt-4",
+              "provider": "openai",
               "metadata": {
-                "model": "qwen-plus",
-                "api_key_env": "DASHSCOPE_API_KEY"
+                "model": "gpt-5.1",
+                "api_key_env": "OPENAI_API_KEY"
               }
             }
           }
         },
         {
-          "label": "qwen-basic",
-          "harness_profile": "basic",
+          "label": "openai-custom",
+          "harness_profile": "custom",
           "request": {
             "agent_profile": {
-              "name": "qwen-plus",
-              "provider": "qwen",
+              "name": "gpt-4",
+              "provider": "openai",
               "metadata": {
-                "model": "qwen-plus",
-                "api_key_env": "DASHSCOPE_API_KEY"
-              }
-            }
-          }
-        },
-        {
-          "label": "qwen-full",
-          "harness_profile": "full",
-          "request": {
-            "agent_profile": {
-              "name": "qwen-plus",
-              "provider": "qwen",
-              "metadata": {
-                "model": "qwen-plus",
-                "api_key_env": "DASHSCOPE_API_KEY"
+                "model": "gpt-5.1",
+                "api_key_env": "OPENAI_API_KEY",
+                "include_inputs": false,
+                "include_verifier_plan": false,
+                "max_context_files": 4,
+                "max_file_chars": 4000
               }
             }
           }

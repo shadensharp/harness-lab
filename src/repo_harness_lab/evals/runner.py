@@ -52,7 +52,12 @@ class SimpleEvalRunner:
         task = self.task_loader.load(case.task_spec_ref)
         benchmark = task.benchmark_metadata
         recommendation = build_task_recommendation(TaskCatalogEntry(path=Path(case.task_spec_ref), task=task))
-        delivery_preview = build_task_spec_delivery_preview(task, source_path=Path(case.task_spec_ref))
+        active_profiles = tuple(dict.fromkeys(config.harness_profile.value for config in case.run_matrix))
+        delivery_preview = (
+            build_task_spec_delivery_preview(task, source_path=Path(case.task_spec_ref))
+            if _should_include_profile_delivery_preview(active_profiles)
+            else {}
+        )
         trials: list[EvalTrial] = []
         durations: list[int] = []
         passed = 0
@@ -106,11 +111,13 @@ class SimpleEvalRunner:
             "harness_signals": list(benchmark.harness_signals),
             "recommendation_score": recommendation.score,
             "recommendation_reasons": list(recommendation.reasons),
-            "shared_task_information": delivery_preview.get("shared_task_information", {}),
-            "harness_delivery_matrix": delivery_preview.get("harness_delivery_matrix", {}),
-            "profile_delta_summary": delivery_preview.get("profile_delta_summary", ()),
+            "comparison_mode": "profile_matrix" if delivery_preview else "current_vs_baseline",
             "notes": list(case.notes),
         }
+        if delivery_preview:
+            summary["shared_task_information"] = delivery_preview.get("shared_task_information", {})
+            summary["harness_delivery_matrix"] = delivery_preview.get("harness_delivery_matrix", {})
+            summary["profile_delta_summary"] = delivery_preview.get("profile_delta_summary", ())
         return CaseResult(case_id=case.case_id, trials=tuple(trials), summary=summary)
 
     def _prepare_request(
@@ -391,5 +398,13 @@ def _median(values: list[int] | list[float]) -> float | None:
     if not values:
         return None
     return float(median(values))
+
+
+def _should_include_profile_delivery_preview(profile_names: tuple[str, ...]) -> bool:
+    supported_profiles = {
+        HarnessProfile.CURRENT.value,
+        HarnessProfile.CUSTOM.value,
+    }
+    return bool(profile_names) and any(profile in supported_profiles for profile in profile_names)
 
 

@@ -129,6 +129,59 @@ class LocalWorkspaceBackendTests(unittest.TestCase):
             self.assertFalse(workspace_root.exists())
             self.assertEqual(workspace.status, WorkspaceStatus.CLEANED)
 
+    def test_prepare_checks_out_requested_git_revision(self) -> None:
+        with tempfile.TemporaryDirectory(dir=TEST_TMP_ROOT) as temp_root:
+            root = Path(temp_root)
+            source_repo = _init_git_repo(root / "source-repo", {"README.md": "alpha\n"})
+            first_revision = _git_head(source_repo)
+            (source_repo / "README.md").write_text("beta\n", encoding="utf8")
+            subprocess.run(["git", "add", "README.md"], cwd=source_repo, check=True, capture_output=True, text=True, encoding="utf8", errors="replace")
+            subprocess.run(["git", "commit", "-m", "second"], cwd=source_repo, check=True, capture_output=True, text=True, encoding="utf8", errors="replace")
+
+            settings = Settings(
+                paths=AppPaths(
+                    project_root=root,
+                    runtime_root=root / "runtime",
+                    runs_dir=root / "runtime" / "runs",
+                    reports_dir=root / "runtime" / "reports",
+                    tmp_dir=root / "runtime" / "tmp",
+                    examples_dir=root / "examples",
+                    tests_dir=root / "tests",
+                ),
+                python_executable=sys.executable,
+                keep_workspaces=False,
+            )
+            backend = LocalWorkspaceBackend(settings=settings)
+            task = TaskSpec(
+                task_id="task-git-pin",
+                title="Prepare pinned git workspace",
+                description="Checkout a pinned git revision into an isolated workspace.",
+                task_type=TaskType.REQUIREMENT_CHANGE,
+                repo_source=RepoSource(
+                    kind=RepoSourceKind.GIT_URL,
+                    path_or_url=source_repo.as_uri(),
+                    checkout_mode=RepoCheckoutMode.COPY,
+                ),
+                repo_revision=first_revision,
+            )
+            request = RunRequest(
+                run_id="run-git-pin",
+                task_id="task-git-pin",
+                agent_profile=AgentProfile(name="dummy"),
+            )
+
+            workspace = backend.prepare(task, request)
+
+            self.assertEqual((workspace.repo_root / "README.md").read_text(encoding="utf8"), "alpha\n")
+            self.assertEqual(workspace.base_revision, first_revision)
+            self.assertEqual(workspace.metadata["resolved_repo_revision"], first_revision)
+
+            workspace_root = workspace.repo_root.parent
+            backend.cleanup(workspace)
+
+            self.assertFalse(workspace_root.exists())
+            self.assertEqual(workspace.status, WorkspaceStatus.CLEANED)
+
 
 def _init_git_repo(path: Path, files: dict[str, str]) -> Path:
     path.mkdir(parents=True)
@@ -142,6 +195,11 @@ def _init_git_repo(path: Path, files: dict[str, str]) -> Path:
     subprocess.run(["git", "add", "."], cwd=path, check=True, capture_output=True, text=True, encoding="utf8", errors="replace")
     subprocess.run(["git", "commit", "-m", "initial"], cwd=path, check=True, capture_output=True, text=True, encoding="utf8", errors="replace")
     return path
+
+
+def _git_head(path: Path) -> str:
+    completed = subprocess.run(["git", "rev-parse", "HEAD"], cwd=path, check=True, capture_output=True, text=True, encoding="utf8", errors="replace")
+    return completed.stdout.strip()
 
 
 if __name__ == "__main__":

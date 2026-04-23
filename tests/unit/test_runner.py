@@ -111,7 +111,7 @@ class RunOrchestratorTests(unittest.TestCase):
             self.assertEqual(summary.status, RunStatus.SUCCEEDED)
             self.assertIn("generated.txt", summary.changed_files)
             self.assertTrue(outcome.artifacts.patch_path.exists())
-            self.assertTrue(outcome.artifacts.report_path.exists())
+            self.assertFalse(outcome.artifacts.report_path.exists())
             self.assertTrue(outcome.artifacts.report_html_path.exists())
             self.assertTrue(outcome.artifacts.summary_path.exists())
             self.assertTrue(outcome.artifacts.verifier_results_path.exists())

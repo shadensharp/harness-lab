@@ -2,11 +2,13 @@
 
 ## 1. 这份说明解决什么问题
 
-部署完成后，外部用户可以直接打开一个网页：
+这份文档只用于保留 `hosted portal` 的部署方法，不代表当前项目主线已经转向公网产品。
+
+部署完成后，使用者可以直接打开一个网页：
 
 - 输入任务描述
 - 填一个公开 `http/https` Git 仓库地址，或者保留系统自带示例仓库
-- 在同一页里看到 `bare / basic / full` 三档运行结果
+- 在同一页里查看运行结果
 
 这套流程对应当前的 `serve-portal` 入口：
 
@@ -25,11 +27,9 @@ python -m repo_harness_lab.cli.main serve-portal --host 127.0.0.1 --port 8765 --
 - 仓库 clone 和工作区都会落到 `REPO_HARNESS_LAB_RUNTIME_ROOT/tmp`。
 - 运行记录和报告会分别落到 `REPO_HARNESS_LAB_RUNTIME_ROOT/runs` 与 `REPO_HARNESS_LAB_RUNTIME_ROOT/reports`。
 
-如果你的目标是首版对外可用，这套边界已经够支撑“公开仓库 + 在线结果返回”的场景。
-
 ## 3. 推荐部署形态
 
-推荐先用这一版最小可用拓扑：
+如果只是保留一套单机 `hosted portal` 部署能力，推荐先用这一版最小拓扑：
 
 - 一台 Linux 主机
 - `systemd` 常驻 `serve-portal`
@@ -200,13 +200,13 @@ sudo systemctl reload nginx
 
 HTTPS 可以直接配合 `certbot --nginx` 完成。
 
-## 10. 对外开放前的自检清单
+## 10. 部署后的自检清单
 
 - 域名已指向 nginx 所在机器
 - `https://your-domain/harness-portal.html` 能打开
 - 页面里默认展示 hosted mode 文案
 - 输入公开 Git 仓库地址后可以预览
-- 点击运行后，页面能轮询并返回 `bare / basic / full`
+- 点击运行后，页面能轮询并返回运行结果
 - 非法输入服务器本地路径时，网页会被拒绝
 - `runtime/tmp`、`runtime/runs`、`runtime/reports` 都可写
 - 模型 API key 生效
@@ -228,14 +228,12 @@ HTTPS 可以直接配合 `certbot --nginx` 完成。
 - 定期清理 `runtime/tmp`
 - 如果 `runtime/runs` 和 `runtime/reports` 需要长期保留，再单独做备份
 
-## 12. 已知限制
+## 12. 当前不在范围内
 
 - 当前 async job store 在内存里，服务重启后不会恢复。
 - 当前没有多实例共享任务队列。
 - 当前没有私有仓库 token / OAuth 流程。
 - 当前没有登录、配额、限流、审计和用户隔离。
-
-如果你要做公开互联网产品，这几项应该排在下一阶段。
 
 ## 13. 模板文件
 
@@ -246,4 +244,4 @@ HTTPS 可以直接配合 `certbot --nginx` 完成。
 - `examples/deployment/repo-harness-lab-portal.service`
 - `examples/deployment/nginx.repo-harness-lab-portal.conf`
 
-如果只是先跑出一版公网可访问 demo，这四个文件已经够用。
+如果只是部署一套单机 `hosted portal`，这四个文件已经够用。

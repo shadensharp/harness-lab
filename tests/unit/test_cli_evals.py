@@ -74,7 +74,7 @@ class CliEvalTests(unittest.TestCase):
                                 "run_matrix": [
                                     {
                                         "label": "pass-script",
-                                        "harness_profile": "basic",
+                                        "harness_profile": "custom",
                                         "request": {
                                             "agent_profile": {
                                                 "name": "local-script",
@@ -91,7 +91,7 @@ class CliEvalTests(unittest.TestCase):
                                     },
                                     {
                                         "label": "noop",
-                                        "harness_profile": "bare",
+                                        "harness_profile": "current",
                                         "request": {
                                             "agent_profile": {
                                                 "name": "noop-agent",
@@ -124,8 +124,8 @@ class CliEvalTests(unittest.TestCase):
             self.assertEqual(payload["suite_id"], "suite-001")
             self.assertEqual(payload["case_count"], 1)
             self.assertEqual(payload["aggregate_metrics"]["total_trials"], 2.0)
-            self.assertEqual(payload["profile_uplift"]["baseline_profile"], "bare")
-            self.assertEqual(payload["profile_uplift"]["basic"]["pass_rate_delta"], 1.0)
+            self.assertEqual(payload["profile_uplift"]["baseline_profile"], "current")
+            self.assertEqual(payload["profile_uplift"]["custom"]["pass_rate_delta"], 1.0)
             self.assertTrue(Path(artifacts["json_report_path"]).exists())
             self.assertTrue(Path(artifacts["markdown_report_path"]).exists())
             self.assertTrue(Path(artifacts["html_report_path"]).exists())
@@ -133,7 +133,7 @@ class CliEvalTests(unittest.TestCase):
             self.assertEqual(len(comparison_paths), 1)
             self.assertTrue(comparison_paths[0].exists())
             self.assertIn("流程时间线对比", comparison_paths[0].read_text(encoding="utf8"))
-            self.assertIn("# Eval suite-001", Path(artifacts["markdown_report_path"]).read_text(encoding="utf8"))
+            self.assertIn("# 评测报告 suite-001", Path(artifacts["markdown_report_path"]).read_text(encoding="utf8"))
             self.assertIn("评测结果 suite-001", html_report)
             self.assertIn("用户任务与结果", html_report)
             self.assertIn("任务输出", html_report)
@@ -141,7 +141,7 @@ class CliEvalTests(unittest.TestCase):
             uplift_html = Path(artifacts["uplift_dashboard_path"]).read_text(encoding="utf8")
             self.assertIn("同模型 Harness 结果页", uplift_html)
             self.assertIn("用户任务", uplift_html)
-            self.assertIn("三档结果", uplift_html)
+            self.assertIn("多运行结果", uplift_html)
             self.assertIn("打开运行报告", uplift_html)
             self.assertIn("任务输出", uplift_html)
             self.assertIn("generated.txt", uplift_html)
@@ -213,8 +213,8 @@ class CliEvalTests(unittest.TestCase):
                                 "task_spec_ref": str(task_path),
                                 "run_matrix": [
                                     {
-                                        "label": "qwen-bare",
-                                        "harness_profile": "bare",
+                                        "label": "qwen-current",
+                                        "harness_profile": "current",
                                         "request": {
                                             "agent_profile": {
                                                 "name": "qwen-plus",
@@ -227,29 +227,19 @@ class CliEvalTests(unittest.TestCase):
                                         }
                                     },
                                     {
-                                        "label": "qwen-basic",
-                                        "harness_profile": "basic",
+                                        "label": "qwen-custom",
+                                        "harness_profile": "custom",
                                         "request": {
                                             "agent_profile": {
                                                 "name": "qwen-plus",
                                                 "provider": "qwen",
                                                 "metadata": {
                                                     "model": "qwen-plus",
-                                                    "api_key_env": "DASHSCOPE_API_KEY"
-                                                }
-                                            }
-                                        }
-                                    },
-                                    {
-                                        "label": "qwen-full",
-                                        "harness_profile": "full",
-                                        "request": {
-                                            "agent_profile": {
-                                                "name": "qwen-plus",
-                                                "provider": "qwen",
-                                                "metadata": {
-                                                    "model": "qwen-plus",
-                                                    "api_key_env": "DASHSCOPE_API_KEY"
+                                                    "api_key_env": "DASHSCOPE_API_KEY",
+                                                    "include_inputs": False,
+                                                    "include_verifier_plan": False,
+                                                    "max_context_files": 4,
+                                                    "max_file_chars": 4000
                                                 }
                                             }
                                         }
@@ -298,32 +288,27 @@ class CliEvalTests(unittest.TestCase):
 
             self.assertEqual(exit_code, 0)
             self.assertEqual(payload["suite_id"], "suite-provider-001")
-            self.assertEqual(payload["aggregate_metrics"]["total_trials"], 3.0)
-            self.assertEqual(profile_uplift["baseline_profile"], "bare")
-            self.assertEqual(profile_uplift["bare"]["pass_rate"], 0.0)
-            self.assertEqual(profile_uplift["basic"]["pass_rate"], 1.0)
-            self.assertEqual(profile_uplift["full"]["pass_rate"], 1.0)
-            self.assertEqual(profile_uplift["basic"]["pass_rate_delta"], 1.0)
-            self.assertEqual(profile_uplift["full"]["pass_rate_delta"], 1.0)
+            self.assertEqual(payload["aggregate_metrics"]["total_trials"], 2.0)
+            self.assertEqual(profile_uplift["baseline_profile"], "current")
+            self.assertEqual(profile_uplift["current"]["pass_rate"], 1.0)
+            self.assertEqual(profile_uplift["custom"]["pass_rate"], 1.0)
+            self.assertEqual(profile_uplift["custom"]["pass_rate_delta"], 0.0)
             self.assertTrue(Path(artifacts["html_report_path"]).exists())
             self.assertTrue(Path(artifacts["uplift_dashboard_path"]).exists())
-            self.assertEqual(len(comparison_paths), 3)
+            self.assertEqual(len(comparison_paths), 1)
             self.assertTrue(all(path.exists() for path in comparison_paths))
             self.assertIn("同模型 Harness 抬升", html_report)
             self.assertIn("用户任务与结果", html_report)
             self.assertIn("任务输出", html_report)
             self.assertIn("同模型 Harness 结果页", uplift_html)
             self.assertIn("用户任务", uplift_html)
-            self.assertIn("三档结果", uplift_html)
+            self.assertIn("多运行结果", uplift_html)
             self.assertIn("打开对比页面", uplift_html)
-            self.assertIn("打开公平对比页面", uplift_html)
-            self.assertIn("打开抬升对比页面", uplift_html)
-            self.assertIn("上下文文件：0", uplift_html)
-            self.assertIn("上下文文件：2", uplift_html)
+            self.assertIn("打开对比页面", uplift_html)
             self.assertIn("Token：提示 20，生成 8，总计 28", uplift_html)
-            self.assertTrue(any("Harness 差异" in path.read_text(encoding="utf8") for path in comparison_paths))
-            self.assertTrue(any("上下文文件: 0 -&gt; 2 (+2)" in path.read_text(encoding="utf8") for path in comparison_paths))
-            self.assertIn("set title to Guess Title", uplift_html)
+            self.assertTrue(any("README.md" in path.read_text(encoding="utf8") for path in comparison_paths))
+            self.assertTrue(any("Golden Title" in path.read_text(encoding="utf8") for path in comparison_paths))
+            self.assertIn("set title to Golden Title", uplift_html)
             self.assertIn("Golden Title", uplift_html)
 
             Path(artifacts["html_report_path"]).unlink()
@@ -345,13 +330,13 @@ class CliEvalTests(unittest.TestCase):
             self.assertEqual(rerender_exit, 0)
             self.assertTrue(rerender_html_path.exists())
             self.assertTrue(rerender_markdown_path.exists())
-            self.assertEqual(len(rerender_comparison_paths), 3)
+            self.assertEqual(len(rerender_comparison_paths), 1)
             self.assertTrue(all(path.exists() for path in rerender_comparison_paths))
             self.assertIn("用户任务与结果", rerender_html)
             self.assertIn("任务输出", rerender_html)
             self.assertIn("同模型 Harness 抬升", rerender_html)
-            self.assertTrue(any("Harness 差异" in path.read_text(encoding="utf8") for path in rerender_comparison_paths))
-            self.assertTrue(any("上下文文件: 0 -&gt; 2 (+2)" in path.read_text(encoding="utf8") for path in rerender_comparison_paths))
+            self.assertTrue(any("target_title.txt" in path.read_text(encoding="utf8") for path in rerender_comparison_paths))
+            self.assertTrue(any("Golden Title" in path.read_text(encoding="utf8") for path in rerender_comparison_paths))
 
 
     def test_run_eval_supports_example_multi_signal_provider_uplift_suite(self) -> None:
@@ -439,14 +424,12 @@ class CliEvalTests(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             self.assertEqual(payload["suite_id"], "qwen-provider-multi-signal-uplift-suite")
             self.assertEqual(payload["case_count"], 2)
-            self.assertEqual(payload["aggregate_metrics"]["total_trials"], 6.0)
-            self.assertEqual(profile_uplift["baseline_profile"], "bare")
-            self.assertEqual(profile_uplift["bare"]["pass_rate"], 0.0)
-            self.assertEqual(profile_uplift["basic"]["pass_rate"], 0.5)
-            self.assertEqual(profile_uplift["full"]["pass_rate"], 1.0)
-            self.assertEqual(profile_uplift["basic"]["pass_rate_delta"], 0.5)
-            self.assertEqual(profile_uplift["full"]["pass_rate_delta"], 1.0)
-            self.assertEqual(len(comparison_paths), 6)
+            self.assertEqual(payload["aggregate_metrics"]["total_trials"], 4.0)
+            self.assertEqual(profile_uplift["baseline_profile"], "current")
+            self.assertEqual(profile_uplift["current"]["pass_rate"], 1.0)
+            self.assertEqual(profile_uplift["custom"]["pass_rate"], 0.5)
+            self.assertEqual(profile_uplift["custom"]["pass_rate_delta"], -0.5)
+            self.assertEqual(len(comparison_paths), 2)
             self.assertTrue(all(path.exists() for path in comparison_paths))
             self.assertIn("release-input-sync", html_report)
             self.assertIn("用户任务", html_report)
@@ -455,7 +438,7 @@ class CliEvalTests(unittest.TestCase):
             self.assertIn("Paper Lantern", html_report)
             self.assertIn("同模型 Harness 结果页", uplift_html)
             self.assertIn("用户任务", uplift_html)
-            self.assertIn("三档结果", uplift_html)
+            self.assertIn("多运行结果", uplift_html)
             self.assertIn("打开运行报告", html_report)
             self.assertIn("打开当前套件", uplift_html)
             self.assertIn("更多证据", uplift_html)
@@ -466,7 +449,7 @@ class CliEvalTests(unittest.TestCase):
             self.assertIn("release_sync", uplift_html)
             self.assertIn("声明了 Harness 信号：multi_file_edit, task_inputs, verifier_plan", uplift_html)
             self.assertIn("Token：提示 32，生成 14，总计 46", uplift_html)
-            self.assertTrue(any("上下文文件: 0 -&gt; 3 (+3)" in path.read_text(encoding="utf8") for path in comparison_paths))
+            self.assertTrue(any("Harness 差异" in path.read_text(encoding="utf8") for path in comparison_paths))
             self.assertTrue(any("Paper Lantern" in path.read_text(encoding="utf8") for path in comparison_paths))
     def test_run_eval_supports_example_extended_provider_uplift_suite(self) -> None:
         with tempfile.TemporaryDirectory() as temp_root:
@@ -538,7 +521,7 @@ class CliEvalTests(unittest.TestCase):
                     )
                     if has_full_bundle:
                         payload = {
-                            "summary": "assemble policy bundle from full repo context",
+                            "summary": "assemble policy bundle from complete repo context",
                             "writes": [
                                 {
                                     "path": "docs/policy_notice.md",
@@ -593,30 +576,26 @@ class CliEvalTests(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             self.assertEqual(payload["suite_id"], "qwen-provider-extended-uplift-suite")
             self.assertEqual(payload["case_count"], 3)
-            self.assertEqual(payload["aggregate_metrics"]["total_trials"], 9.0)
-            self.assertEqual(profile_uplift["baseline_profile"], "bare")
-            self.assertEqual(profile_uplift["bare"]["pass_rate"], 0.0)
-            self.assertAlmostEqual(profile_uplift["basic"]["pass_rate"], 1 / 3)
-            self.assertEqual(profile_uplift["full"]["pass_rate"], 1.0)
-            self.assertAlmostEqual(profile_uplift["basic"]["pass_rate_delta"], 1 / 3)
-            self.assertEqual(profile_uplift["full"]["pass_rate_delta"], 1.0)
-            self.assertEqual(len(comparison_paths), 9)
+            self.assertEqual(payload["aggregate_metrics"]["total_trials"], 6.0)
+            self.assertEqual(profile_uplift["baseline_profile"], "current")
+            self.assertEqual(profile_uplift["current"]["pass_rate"], 1.0)
+            self.assertAlmostEqual(profile_uplift["custom"]["pass_rate"], 1 / 3)
+            self.assertAlmostEqual(profile_uplift["custom"]["pass_rate_delta"], -2 / 3)
+            self.assertEqual(len(comparison_paths), 3)
             self.assertTrue(all(path.exists() for path in comparison_paths))
             self.assertIn("policy-bundle-sync", html_report)
             self.assertIn("trust-ops@example.test", html_report)
             self.assertIn("repo_context", html_report)
             self.assertIn("共同任务信息", html_report)
-            self.assertIn("三档额外交付", html_report)
             self.assertIn("同模型 Harness 结果页", uplift_html)
             self.assertIn("用户任务", uplift_html)
             self.assertIn("共同任务信息", uplift_html)
-            self.assertIn("三档结果", uplift_html)
+            self.assertIn("多运行结果", uplift_html)
             self.assertIn("assemble policy bundle from partial repo context", uplift_html)
             self.assertIn("policy-bundle-sync", uplift_html)
             self.assertIn("policy_sync", uplift_html)
             self.assertTrue(any("trust-ops@example.test" in path.read_text(encoding="utf8") for path in comparison_paths))
-            self.assertTrue(any("上下文文件: 0 -&gt; 8 (+8)" in path.read_text(encoding="utf8") for path in comparison_paths))
-            self.assertTrue(any("新增任务输入" in path.read_text(encoding="utf8") for path in comparison_paths))
+            self.assertTrue(any("release-input-sync" in path.read_text(encoding="utf8") for path in comparison_paths))
 
 if __name__ == "__main__":
     unittest.main()

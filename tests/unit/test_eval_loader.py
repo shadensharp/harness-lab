@@ -34,7 +34,7 @@ class JsonEvalSuiteLoaderTests(unittest.TestCase):
                                 "run_matrix": [
                                     {
                                         "label": "noop",
-                                        "harness_profile": "bare",
+                                        "harness_profile": "current",
                                         "request": {
                                             "agent_profile": {
                                                 "name": "noop-agent",
@@ -58,7 +58,7 @@ class JsonEvalSuiteLoaderTests(unittest.TestCase):
             self.assertEqual(suite.cases[0].case_id, "case-001")
             self.assertEqual(suite.cases[0].task_spec_ref, str(task_path.resolve()))
             self.assertEqual(suite.cases[0].run_matrix[0].request.agent_profile.name, "noop-agent")
-            self.assertEqual(suite.cases[0].run_matrix[0].harness_profile, HarnessProfile.BARE)
+            self.assertEqual(suite.cases[0].run_matrix[0].harness_profile, HarnessProfile.CURRENT)
 
 
 if __name__ == "__main__":

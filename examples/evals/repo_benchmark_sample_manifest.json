@@ -1,0 +1,26 @@
+{
+  "benchmark_id": "repo-benchmark-sample",
+  "metric_name": "task_pass_rate",
+  "notes": [
+    "sample repo-first benchmark manifest",
+    "official datasets should use git_url plus repo_revision pinning"
+  ],
+  "cases": [
+    {
+      "instance_id": "repo-benchmark-readme-001",
+      "source_url": "https://example.test/benchmarks/repo-benchmark-sample/readme-001",
+      "task_ref": "../tasks/requirement_change/qwen_provider_readme_uplift_task.json",
+      "notes": [
+        "single-file README sync sample"
+      ]
+    },
+    {
+      "instance_id": "repo-benchmark-release-001",
+      "source_url": "https://example.test/benchmarks/repo-benchmark-sample/release-001",
+      "task_ref": "../tasks/requirement_change/qwen_provider_release_input_uplift_task.json",
+      "notes": [
+        "task-input plus multi-file sync sample"
+      ]
+    }
+  ]
+}

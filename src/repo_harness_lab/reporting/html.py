@@ -27,6 +27,7 @@ from repo_harness_lab.shared.profile_comparisons import (
     comparison_map_by_target_profile,
     default_baseline_profile,
 )
+from repo_harness_lab.shared.portal_story import PORTAL_STORY_TITLES
 
 if TYPE_CHECKING:
     from repo_harness_lab.storage.run_store import (
@@ -87,6 +88,8 @@ class HtmlReporter:
         model_label = self._eval_model_label(report.case_results)
         case_cards = "".join(self._render_eval_case(case.case_id, case.summary, case.trials) for case in report.case_results)
         metric_rows = self._kv_rows((metric.name, self._format_metric(metric.value, metric.unit)) for metric in report.aggregate_metrics)
+        baseline_view = next((dict(view.items) for view in report.comparison_views if view.name == "report_baseline"), {})
+        uses_profile_matrix = self._report_uses_profile_matrix(report.case_results)
         comparison_cards = "".join(
             self._panel(
                 f"对比视图 · {view.name}",
@@ -95,16 +98,38 @@ class HtmlReporter:
             )
             for view in report.comparison_views
         )
+        hero_badges = [f"模型：{model_label}", f"任务：{len(report.case_results)}"]
+        if uses_profile_matrix:
+            hero_badges.append("模式：multi-run")
+        else:
+            hero_badges.append("模式：current")
+            if baseline_view.get("baseline_report_id"):
+                hero_badges.append(f"基线：{baseline_view['baseline_report_id']}")
+        explainer_title = "多运行说明" if uses_profile_matrix else "基线说明"
+        explainer_body = (
+            self._profile_explainer()
+            if uses_profile_matrix
+            else self._baseline_summary_block(baseline_view) if baseline_view else self._current_mode_explainer()
+        )
+        explainer_subtitle = (
+            "控制变量固定，同一模型、同一任务、同一验收，只改变 harness 额外交给模型的内容。"
+            if uses_profile_matrix
+            else "主线只跑 current 单次配置；要比较时，再对照历史基线或自定义基线报告。"
+        )
         body = "".join(
             [
                 '<div class="page-shell simple-shell">',
                 self._hero(
-                    eyebrow="同模型 Harness 抬升",
+                    eyebrow="同模型 Harness 抬升" if uses_profile_matrix else "基线对比",
                     title=report.suite_id,
-                    subtitle="同一模型下直接对比 bare / basic / full 三档结果。",
-                    badges=(f"模型：{model_label}", f"任务：{len(report.case_results)}", "档位：bare/basic/full"),
+                    subtitle=(
+                        "同一模型下直接对比当前运行和附加运行结果。"
+                        if uses_profile_matrix
+                        else "当前运行结果；如已指定基线，会在这里直接展示当前版本和基线版本的差异。"
+                    ),
+                    badges=tuple(hero_badges),
                 ),
-                self._panel("三档说明", self._profile_explainer(), subtitle="控制变量固定，同一模型、同一任务、同一验收，只改变 harness 额外交给模型的内容。", extra_class="panel-span-2"),
+                self._panel(explainer_title, explainer_body, subtitle=explainer_subtitle, extra_class="panel-span-2"),
                 self._panel("用户任务与结果", case_cards or self._empty_state("当前没有可展示的任务结果。"), subtitle="每个任务都直接展示任务、结果输出和验证结果。", extra_class="panel-span-2"),
                 self._details_panel(
                     "更多证据",
@@ -212,12 +237,14 @@ class HtmlReporter:
         focus = self._pick_focus_eval_case(eval_reports)
 
         focus_entry = self._empty_state("当前还没有可展示的真实任务。")
-        focus_results = self._empty_state("当前还没有 bare / basic / full 三档结果，请先跑真实 same-model harness uplift。")
+        focus_results = self._empty_state("当前还没有可展示的当前结果，请先跑真实评测。")
         focus_actions = ""
         focus_comparison_actions = ""
+        focus_uses_profile_matrix = False
         if focus is not None:
             focus_report, focus_case = focus
             summary_mapping = dict(focus_case.summary) if isinstance(focus_case.summary, Mapping) else {}
+            focus_uses_profile_matrix = self._stored_case_uses_profile_matrix(focus_case)
             task_title, task_description = self._load_task_brief(summary_mapping, focus_case.case_id, focus_case.trials)
             model_label = self._model_label_from_trials(focus_case.trials)
             focus_entry = (
@@ -264,12 +291,17 @@ class HtmlReporter:
         body = "".join(
             [
                 '<div class="page-shell simple-shell">',
-                self._hero(eyebrow="历史证据页", title="同模型 Harness 演示台", subtitle="这里展示最近一轮 same-model harness uplift 的历史证据；真正提交任意新任务，请进入 live 交互页。", badges=("历史样本任务", "正式套件优先", "Live 入口")),
-                self._panel("三档说明", self._profile_explainer(), subtitle="同一模型、同一任务、同一仓库边界，只改变 harness 额外交给模型的东西；真正的实时输入在 live 页。", extra_class="panel-span-2"),
-                self._panel("用户任务", focus_entry + focus_actions + live_portal_box, subtitle="这里展示最近一次历史样本任务，不是你当前正在输入的新任务。", extra_class="panel-span-2"),
-                self._panel("三档结果", focus_results, subtitle="下面是这条历史任务在 bare / basic / full 下的真实结果，用来说明 harness 交付差异。", extra_class="panel-span-2"),
+                self._hero(eyebrow="历史证据页", title="同模型 Harness 演示台", subtitle="这是静态历史证据页，只展示已经跑完的样本和结果；如果要提交任意新任务，请先启动 live 服务，再通过本地 HTTP 页面操作。", badges=("历史样本任务", "正式套件优先", "Live 入口")),
+                self._panel(
+                    PORTAL_STORY_TITLES["decision"],
+                    self._profile_explainer() if focus_uses_profile_matrix else self._current_mode_explainer(),
+                    subtitle="同一模型、同一任务、同一仓库边界，只改变 harness 额外交给模型的东西；真正的新任务输入不在这个静态页里。" if focus_uses_profile_matrix else "主线只展示 current 结果；如有基线报告，会在套件页里显示当前 vs 基线的差异。",
+                    extra_class="panel-span-2",
+                ),
+                self._panel(PORTAL_STORY_TITLES["task"], focus_entry + focus_actions + live_portal_box, subtitle="这里展示最近一次历史样本任务，不是你当前正在输入的新任务；新任务请走下面的 Live 提交入口。", extra_class="panel-span-2"),
+                self._panel(PORTAL_STORY_TITLES["result"], focus_results, subtitle="下面是这条历史任务在不同运行配置下的真实结果，用来说明 harness 交付差异。" if focus_uses_profile_matrix else "下面是这条历史任务在 current 配置下的真实结果。", extra_class="panel-span-2"),
                 self._details_panel(
-                    "更多证据",
+                    PORTAL_STORY_TITLES["details"],
                     self._panel("快捷入口", overview_actions or self._empty_state("当前没有可打开的总览页面。"), subtitle="常用总览页入口。", extra_class="panel-span-2")
                     + self._panel("正式证据页", support_actions or self._empty_state("当前没有正式证据页。"), subtitle="首页只保留正式 intake、suite 和当前聚焦任务的对比入口。", extra_class="panel-span-2")
                     + self._panel("Portal 试跑归档", archived_actions or self._empty_state("当前没有归档试跑记录。"), subtitle="live portal 的临时提交记录会收在这里，不再占首页正式入口。", extra_class="panel-span-2")
@@ -286,13 +318,40 @@ class HtmlReporter:
     def _profile_explainer(self) -> str:
         return self._list_block(
             (
-                "Bare：只给同一条任务文本和最基础的仓库结构，不额外注入任务输入或验收步骤。",
-                "Basic：在 Bare 基础上，再补选中的仓库上下文文件。",
-                "Full：在 Basic 基础上，再补结构化任务输入和 verifier 步骤。",
+                "Current：展示当前主线实际交付给模型的仓库树、上下文、任务输入和验收信息。",
+                "Custom：如果存在自定义基线，就用同一任务边界对照当前交付和基线差异。",
                 "控制变量固定：同一模型、同一任务、同一仓库边界、同一输出格式；只改变 harness 额外交给模型的内容。",
             ),
-            empty_text="当前没有三档说明。",
+            empty_text="当前没有运行模式说明。",
         )
+
+    def _current_mode_explainer(self) -> str:
+        return self._list_block(
+            (
+                "主线只跑一次 current 配置，不再默认展开历史矩阵。",
+                "current 会带完整仓库树、上下文文件、任务输入和 verifier 步骤。",
+                "如果要比较效果，直接对照历史基线报告或用户手工指定的基线报告。",
+            ),
+            empty_text="当前没有基线说明。",
+        )
+
+    def _baseline_summary_block(self, baseline_view: Mapping[str, object]) -> str:
+        if not baseline_view:
+            return self._empty_state("当前没有基线信息。")
+        items = [
+            f"当前套件：{baseline_view.get('current_suite_id', 'n/a')}",
+            f"{self._baseline_kind_label(str(baseline_view.get('baseline_kind', 'custom')))}：{baseline_view.get('baseline_report_id', 'n/a')}",
+            f"通过率变化：{self._format_signed_ratio_delta(baseline_view.get('pass_rate_delta'))}",
+            f"平均耗时变化：{self._format_signed_duration_value(baseline_view.get('average_duration_delta_ms'))}",
+            f"匹配到的 case 数：{baseline_view.get('matched_case_count', 0)}",
+        ]
+        improved = [str(item) for item in baseline_view.get("improved_case_ids", ()) if str(item)]
+        regressed = [str(item) for item in baseline_view.get("regressed_case_ids", ()) if str(item)]
+        if improved:
+            items.append("变好 case：" + ", ".join(improved[:3]))
+        if regressed:
+            items.append("变差 case：" + ", ".join(regressed[:3]))
+        return self._list_block(tuple(items), empty_text="当前没有基线信息。")
 
     def _primary_eval_reports(self, eval_reports: Sequence[StoredEvalReport]) -> list[StoredEvalReport]:
         primary = [report for report in eval_reports if not getattr(report, "is_portal_live", False)]
@@ -407,6 +466,7 @@ class HtmlReporter:
         note_block = ""
         if notes:
             note_block = '<details class="inline-details"><summary class="details-hint">补充说明</summary>' + self._list_block(notes, empty_text="当前没有额外说明。") + '</details>'
+        uses_profile_matrix = self._trials_use_profile_matrix(ordered_trials)
         return "".join(
             [
                 '<article class="run-card focus-case">',
@@ -416,9 +476,9 @@ class HtmlReporter:
                 '</div>',
                 f'<h3>{escape(task_title)}</h3>',
                 f'<p class="muted">{escape(task_description or "当前任务没有额外描述。")}</p>',
-                self._render_task_input_box(title=task_title, description=task_description, model_label=model_label, hint="下方展示各档 harness 的真实运行结果。"),
+                self._render_task_input_box(title=task_title, description=task_description, model_label=model_label, hint="下方展示各档 harness 的真实运行结果。" if uses_profile_matrix else "下方展示 current 配置下的真实运行结果。"),
                 self._render_case_delivery_proof(summary_mapping),
-                '<h4>三档结果</h4>',
+                '<h4>多运行结果</h4>' if uses_profile_matrix else '<h4>当前结果</h4>',
                 self._card_grid(self._render_focus_trial_card(trial, case_summary=summary_mapping, all_trials=ordered_trials) for trial in ordered_trials),
                 note_block,
                 '</article>',
@@ -445,12 +505,18 @@ class HtmlReporter:
         return ''.join(
             [
                 '<div class="example-box">',
-                '<div class="example-title">Live ????</div>',
+                '<div class="example-title">提交新任务（Live 页）</div>',
                 '<div class="run-card-actions">',
-                self._link_button(url, "?? live ???", primary=True),
+                self._link_button(url, "打开 Live 提交页", primary=True),
                 '</div>',
-                f'<p class="muted">?????????????????? file:///runtime/reports/harness-portal.html ?????????????????? live ?????? {escape(url)}?</p>',
+                '<p class="muted">你现在打开的 file:///.../runtime/reports/harness-portal.html 是静态历史页，只能看证据，不能直接提交新任务。</p>',
+                '<ul class="stack-list">',
+                '<li>1. 先在终端运行下面这条命令启动 live 服务。</li>',
+                '<li>2. 再用浏览器打开上面的 HTTP 地址，而不是 file:/// 本地文件地址。</li>',
+                '<li>3. 进入 live 页后，至少填写“任务正文”和“仓库来源”；本地模式支持任意自然语言任务，其余字段可以先留空。</li>',
+                '</ul>',
                 f'<pre>{escape(command)}</pre>',
+                f'<p class="muted">建议直接访问：<code>{escape(url)}</code></p>',
                 '</div>',
             ]
         )
@@ -473,7 +539,7 @@ class HtmlReporter:
             ])
         if profile_cards:
             parts.extend([
-                '<h4>三档额外交付</h4>',
+                '<h4>本次额外交付</h4>',
                 self._card_grid((profile_cards,)),
             ])
         if delta_cards:
@@ -578,24 +644,24 @@ class HtmlReporter:
         shared = self._mapping(summary_mapping.get("shared_task_information"))
         if not shared:
             return ()
-        items = ["三档都收到上面这条完全相同的任务正文。"]
+        items = ["各运行都收到上面这条完全相同的任务正文。"]
         editable = [str(item) for item in shared.get("editable_paths", ()) if str(item)]
         forbidden = [str(item) for item in shared.get("forbidden_paths", ()) if str(item)]
         changed = [str(item) for item in shared.get("expected_changed_files", ()) if str(item)]
         checks = [str(item) for item in shared.get("behavioral_checks", ()) if str(item)]
         verifier_steps = [str(item) for item in shared.get("required_verifier_steps", ()) if str(item)]
         if editable:
-            items.append(f"三档的可改范围相同：{', '.join(editable)}")
+            items.append(f"各运行的可改范围相同：{', '.join(editable)}")
         if forbidden:
-            items.append(f"三档的禁改范围相同：{', '.join(forbidden)}")
+            items.append(f"各运行的禁改范围相同：{', '.join(forbidden)}")
         if changed:
-            items.append(f"三档的目标改动文件相同：{', '.join(changed)}")
+            items.append(f"各运行的目标改动文件相同：{', '.join(changed)}")
         if checks:
-            items.append(f"三档的行为检查相同：{'; '.join(checks)}")
+            items.append(f"各运行的行为检查相同：{'; '.join(checks)}")
         if verifier_steps:
-            items.append(f"三档看到的必过步骤名称相同：{', '.join(verifier_steps)}")
+            items.append(f"各运行看到的必过步骤名称相同：{', '.join(verifier_steps)}")
         if shared.get("response_contract"):
-            items.append("三档的输出格式要求相同：只能返回 JSON summary + writes。")
+            items.append("各运行的输出格式要求相同：只能返回 JSON summary + writes。")
         return tuple(items)
 
     def _summary_profile_matrix(self, summary_mapping: Mapping[str, object]) -> dict[str, Mapping[str, object]]:
@@ -644,20 +710,20 @@ class HtmlReporter:
         normalized = " ".join(str(text).split())
         if not normalized:
             return ""
-        if normalized == "The same user task title and description go to bare/basic/full.":
-            return "三档收到的是同一条用户任务标题和说明。"
+        if normalized == "The current run receives the same task title and description.":
+            return "当前运行收到的是同一条用户任务标题和说明。"
         if normalized.startswith("Same editable paths: "):
-            return "三档可改范围相同：" + normalized.removeprefix("Same editable paths: ")
+            return "各运行可改范围相同：" + normalized.removeprefix("Same editable paths: ")
         if normalized.startswith("Same forbidden paths: "):
-            return "三档禁改范围相同：" + normalized.removeprefix("Same forbidden paths: ")
+            return "各运行禁改范围相同：" + normalized.removeprefix("Same forbidden paths: ")
         if normalized.startswith("Same expected changed files: "):
-            return "三档目标改动文件相同：" + normalized.removeprefix("Same expected changed files: ")
+            return "各运行目标改动文件相同：" + normalized.removeprefix("Same expected changed files: ")
         if normalized.startswith("Same behavioral checks: "):
-            return "三档行为检查相同：" + normalized.removeprefix("Same behavioral checks: ")
+            return "各运行行为检查相同：" + normalized.removeprefix("Same behavioral checks: ")
         if normalized.startswith("Same required verifier step names: "):
-            return "三档必过步骤名称相同：" + normalized.removeprefix("Same required verifier step names: ")
+            return "各运行必过步骤名称相同：" + normalized.removeprefix("Same required verifier step names: ")
         if normalized == "Same response contract: JSON only with summary and writes.":
-            return "三档输出格式相同：只能返回 JSON summary + writes。"
+            return "各运行输出格式相同：只能返回 JSON summary + writes。"
         if normalized.startswith("Extra harness material: repository tree only"):
             return normalized.replace("Extra harness material: repository tree only", "额外 harness 材料：只有仓库树")
         if normalized.startswith("Repository tree attached"):
@@ -794,11 +860,46 @@ class HtmlReporter:
         return sanitized or "report"
 
     def _profile_sort_key(self, profile: str) -> tuple[int, str]:
-        order = {"bare": 0, "basic": 1, "full": 2}
+        order = {"current": 0, "custom": 1}
         return order.get(profile, 99), profile
 
     def _profile_label(self, profile: str) -> str:
-        return {"bare": "Bare 裸跑", "basic": "Basic 仓库上下文", "full": "Full 完整 Harness"}.get(profile, profile)
+        return {
+            "current": "Current 当前配置",
+            "custom": "Custom 自定义配置",
+        }.get(profile, profile)
+
+    def _report_uses_profile_matrix(self, case_results: Sequence[object]) -> bool:
+        return any(self._trials_use_profile_matrix(getattr(case, "trials", ())) for case in case_results)
+
+    def _stored_case_uses_profile_matrix(self, case: object) -> bool:
+        return self._trials_use_profile_matrix(getattr(case, "trials", ()))
+
+    def _trials_use_profile_matrix(self, trials: Sequence[object]) -> bool:
+        profiles = {
+            str(getattr(getattr(trial, "harness_profile", ""), "value", getattr(trial, "harness_profile", "")))
+            for trial in trials
+            if getattr(trial, "run_summary", None) is not None
+        }
+        supported_profiles = {"current", "custom"}
+        return len(profiles) > 1 and bool(profiles & supported_profiles)
+
+    def _baseline_kind_label(self, kind: str) -> str:
+        return {"historical": "历史基线", "custom": "自定义基线"}.get(kind, kind or "基线")
+
+    def _format_signed_ratio_delta(self, value: object) -> str:
+        if value is None:
+            return "n/a"
+        points = float(value) * 100
+        sign = "+" if points > 0 else ""
+        return f"{sign}{points:.1f} pts"
+
+    def _format_signed_duration_value(self, value: object) -> str:
+        if value is None:
+            return "n/a"
+        milliseconds = int(round(float(value)))
+        sign = "+" if milliseconds > 0 else ""
+        return f"{sign}{milliseconds} ms" if abs(milliseconds) < 1000 else f"{sign}{milliseconds / 1000:.2f} s"
 
     def _status_label(self, status: str) -> str:
         return {"succeeded": "成功", "failed": "失败", "error": "错误", "running": "运行中", "pending": "等待中", "skipped": "已跳过", "cancelled": "已取消"}.get(status, status)

@@ -50,8 +50,8 @@ class SimpleEvalRunnerTests(unittest.TestCase):
         def execute_run(task: TaskSpec, request: RunRequest) -> RunSummary:
             captured_requests.append(request)
             profile = request.metadata["eval_context"]["harness_profile"]
-            succeeded = profile != HarnessProfile.BARE.value
-            duration_ms = 2400 if profile == HarnessProfile.BARE.value else 1200
+            succeeded = profile != HarnessProfile.CURRENT.value
+            duration_ms = 2400 if profile == HarnessProfile.CURRENT.value else 1200
             notes = ("missing repository context to find the target file",) if not succeeded else ()
             return RunSummary(
                 run_id=request.run_id,
@@ -73,7 +73,7 @@ class SimpleEvalRunnerTests(unittest.TestCase):
                     run_matrix=(
                         EvalRunConfig(
                             label="baseline",
-                            harness_profile=HarnessProfile.BARE,
+                            harness_profile=HarnessProfile.CURRENT,
                             request=RunRequest(
                                 run_id="",
                                 task_id="",
@@ -81,17 +81,8 @@ class SimpleEvalRunnerTests(unittest.TestCase):
                             ),
                         ),
                         EvalRunConfig(
-                            label="basic",
-                            harness_profile=HarnessProfile.BASIC,
-                            request=RunRequest(
-                                run_id="",
-                                task_id="",
-                                agent_profile=AgentProfile(name="same-model", provider="local"),
-                            ),
-                        ),
-                        EvalRunConfig(
-                            label="full",
-                            harness_profile=HarnessProfile.FULL,
+                            label="custom",
+                            harness_profile=HarnessProfile.CUSTOM,
                             request=RunRequest(
                                 run_id="",
                                 task_id="",
@@ -107,18 +98,18 @@ class SimpleEvalRunnerTests(unittest.TestCase):
 
         self.assertEqual(report.suite_id, "suite-001")
         self.assertEqual(len(report.case_results), 1)
-        self.assertEqual(report.case_results[0].summary["trial_count"], 3)
-        self.assertEqual(report.case_results[0].summary["passed_trials"], 2)
+        self.assertEqual(report.case_results[0].summary["trial_count"], 2)
+        self.assertEqual(report.case_results[0].summary["passed_trials"], 1)
         self.assertEqual(report.case_results[0].summary["benchmark_tier"], "curated")
         self.assertIn("cross_file", report.case_results[0].summary["task_tags"])
         metrics = {metric.name: metric.value for metric in report.aggregate_metrics}
-        self.assertEqual(metrics["total_trials"], 3.0)
-        self.assertAlmostEqual(metrics["pass_rate"], 2 / 3)
-        self.assertEqual(len(captured_requests), 3)
+        self.assertEqual(metrics["total_trials"], 2.0)
+        self.assertAlmostEqual(metrics["pass_rate"], 0.5)
+        self.assertEqual(len(captured_requests), 2)
         self.assertEqual(captured_requests[0].task_id, "task-001")
         self.assertTrue(captured_requests[0].run_id.startswith("run-"))
         self.assertIn("eval_suite:suite-001", captured_requests[0].labels)
-        self.assertIn("harness_profile:bare", captured_requests[0].labels)
+        self.assertIn("harness_profile:current", captured_requests[0].labels)
 
         comparison_views = {view.name: view.items for view in report.comparison_views}
         label_view = comparison_views["label_summary"]
@@ -128,17 +119,19 @@ class SimpleEvalRunnerTests(unittest.TestCase):
         tag_view = comparison_views["tag_profile_summary"]
         signal_view = comparison_views["signal_profile_summary"]
 
-        self.assertEqual(label_view["baseline"]["harness_profile"], "bare")
-        self.assertEqual(profile_view["bare"]["passed_trials"], 0)
-        self.assertEqual(profile_view["basic"]["passed_trials"], 1)
-        self.assertEqual(profile_view["full"]["passed_trials"], 1)
-        self.assertEqual(uplift_view["baseline_profile"], "bare")
-        self.assertEqual(uplift_view["basic"]["pass_rate_delta"], 1.0)
-        self.assertEqual(uplift_view["full"]["average_duration_delta_ms"], -1200.0)
-        self.assertEqual(failure_view["bare"]["failed_trials"], 1)
-        self.assertEqual(failure_view["bare"]["top_reasons"][0]["reason"], "missing repository context to find the target file")
-        self.assertEqual(tag_view["cross_file"]["profiles"]["basic"]["average_case_pass_rate"], 1.0)
-        self.assertEqual(signal_view["context_management"]["profiles"]["bare"]["average_case_pass_rate"], 0.0)
+        self.assertEqual(label_view["baseline"]["harness_profile"], "current")
+        self.assertEqual(profile_view["current"]["passed_trials"], 0)
+        self.assertEqual(profile_view["custom"]["passed_trials"], 1)
+        self.assertEqual(uplift_view["baseline_profile"], "current")
+        self.assertEqual(uplift_view["custom"]["pass_rate_delta"], 1.0)
+        self.assertEqual(uplift_view["custom"]["average_duration_delta_ms"], -1200.0)
+        self.assertEqual(failure_view["current"]["failed_trials"], 1)
+        self.assertEqual(
+            failure_view["current"]["top_reasons"][0]["reason"],
+            "missing repository context to find the target file",
+        )
+        self.assertEqual(tag_view["cross_file"]["profiles"]["custom"]["average_case_pass_rate"], 1.0)
+        self.assertEqual(signal_view["context_management"]["profiles"]["current"]["average_case_pass_rate"], 0.0)
 
 
 if __name__ == "__main__":

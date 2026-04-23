@@ -1,23 +1,30 @@
-﻿# 示例目录
+# 示例目录
 
-## qwen provider uplift 示例
+## 默认单题示例：Tetris
 
-这套示例用于演示同一个外部模型在 `bare / basic / full` 三档 harness profile 下的结果差异。
+如果你想先跑一个直观的单题示例，先用这套默认 intake：
 
-推荐优先跑多信号 suite：
+```powershell
+python -m repo_harness_lab.cli.main show-task-intake-template
+python -m repo_harness_lab.cli.main preview-intake examples/intakes/portal_tetris_task_intake.json --format both
+python -m repo_harness_lab.cli.main scaffold-task-spec examples/intakes/portal_tetris_task_intake.json --write runtime/tmp/portal_tetris_demo.task.json
+```
+
+如果已经配置好模型 API Key，也可以直接跑默认主线的 `current`：
+
+```powershell
+python -m repo_harness_lab.cli.main run-intake-eval examples/intakes/portal_tetris_task_intake.json --provider qwen --model qwen-plus --api-key-env DASHSCOPE_API_KEY
+```
+
+这套示例对应的仓库是 `examples/repos/portal_tetris_demo_repo`，默认只允许修改 `game/tetris.py`，验收命令是 `python -m unittest tests.test_tetris_game -q`。
+
+## 历史 uplift 示例
+
+这些 suite 仍保留，用于演示 `current` 与 `custom` 的附加运行差异；它们不是当前默认主线。
+
 - `examples/evals/qwen_provider_multi_signal_uplift_suite.json`
-- 它同时覆盖两类差异来源：
-  - `repo_context`：让 `bare` 明显弱于 `basic / full`
-  - `task_inputs + verifier_plan`：让 `full` 明显强于 `bare / basic`
-
-单题 smoke suite 仍然保留：
 - `examples/evals/qwen_provider_uplift_suite.json`
-- 它更快，适合先验证 provider 通路与页面链路。
-
-前置条件：
-- 已设置 `DASHSCOPE_API_KEY`
-- 从项目根目录运行命令
-- 当前环境里可直接使用 `python`
+- `examples/evals/qwen_provider_extended_uplift_suite.json`
 
 运行命令：
 
@@ -25,86 +32,65 @@
 repo-harness-lab run-eval examples/evals/qwen_provider_multi_signal_uplift_suite.json
 ```
 
-如果尚未安装控制台脚本，也可以用：
-
-```powershell
-python -m repo_harness_lab.cli.main run-eval examples/evals/qwen_provider_multi_signal_uplift_suite.json
-```
-
-如果只想快速 smoke 一次单题 provider uplift，也可以用：
+如果只想更快地跑一轮旧 smoke，可以用：
 
 ```powershell
 python -m repo_harness_lab.cli.main run-eval examples/evals/qwen_provider_uplift_suite.json
 ```
 
-如果想先把一段业务需求整理成可执行的 TaskSpec scaffold，可以先看 intake 模板，再把 intake JSON 转成任务文件：
+如果只是想看 intake 经过系统后，当前运行会收到什么信息，可以先用：
 
 ```powershell
-python -m repo_harness_lab.cli.main show-task-intake-template
-python -m repo_harness_lab.cli.main scaffold-task-spec examples/intakes/provider_release_input_task_intake.json --write runtime/tmp/provider_release_input_task.json
+python -m repo_harness_lab.cli.main preview-intake examples/intakes/portal_tetris_task_intake.json
 ```
 
-如果想在真正开跑前，先看这份 intake 会如何被系统理解，以及 `bare / basic / full` 各自会交付哪些信息，可以先用：
+如果你要跑当前主线，而不是旧多配置矩阵，请优先使用 `run-intake-eval`。
+
+## Repo Benchmark 示例
+
+轻量 manifest 示例：
+
+- `examples/evals/repo_benchmark_sample_manifest.json`
+- `docs/benchmarks/EXTERNAL_BENCHMARK_LANE.md`
+
+运行命令：
 
 ```powershell
-python -m repo_harness_lab.cli.main preview-intake examples/intakes/provider_release_input_task_intake.json
+python -m repo_harness_lab.cli.main run-benchmark-eval examples/evals/repo_benchmark_sample_manifest.json --provider qwen --model qwen-plus --api-key-env DASHSCOPE_API_KEY
 ```
 
-如果想直接从一张业务 intake 跑成同模型 bare/basic/full uplift 对比，而不是自己再手写 suite，可以用：
+这条链路默认只跑一次 `current`；如果要对照旧结果或历史版本，使用 `--baseline-report-id` 或 `--historical-baseline-report-id`。
+
+## SWE-bench Export 示例
+
+如果你想从更接近 official benchmark 的实例文件开始，而不是手写 manifest，可以看：
+
+- `examples/benchmarks/swe_bench_sample_instances.jsonl`
+
+先导出 manifest：
 
 ```powershell
-python -m repo_harness_lab.cli.main run-intake-eval examples/intakes/provider_release_input_task_intake.json --provider qwen --model qwen-plus --api-key-env DASHSCOPE_API_KEY
+python -m repo_harness_lab.cli.main export-swebench-manifest examples/benchmarks/swe_bench_sample_instances.jsonl runtime/tmp/swe_bench_sample.manifest.json --benchmark-id swe-bench-sample --metric-name resolved_rate --default-verifier-command-json "[\"python\", \"-m\", \"pytest\", \"-q\"]"
 ```
 
-这条命令会自动：
-- scaffold `TaskSpec`
-- 生成单 case bare/basic/full suite
-- 跑完整 eval / comparison / dashboard
-- 把中间产物落到 `runtime/tmp/*.task.json` 和 `runtime/tmp/*.suite.json`
-
-如果想先看系统推荐哪些任务更容易体现 harness uplift，可以用：
+再跑 benchmark lane：
 
 ```powershell
-python -m repo_harness_lab.cli.main recommend-tasks examples/tasks --prefer-signal repo_context --prefer-signal task_inputs --prefer-signal verifier_plan
+python -m repo_harness_lab.cli.main run-benchmark-eval runtime/tmp/swe_bench_sample.manifest.json --provider qwen --model qwen-plus --api-key-env DASHSCOPE_API_KEY
 ```
 
-推荐结果现在也会进入已落盘的 eval 事实里：
-- suite case summary 会保存 `recommendation_score` 与 `recommendation_reasons`
-- `runtime/reports/uplift-dashboard.html` 首页会显示 `Recommended Task Shapes`
-- `runtime/reports/harness-portal.html` 会显示 `Recommended Uplift Tasks`
-- `runtime/reports/uplift-dashboard.html` 与 `runtime/reports/harness-portal.html` 现在还会显示 `Open Task Entry`
-- `Open Task Entry` 会基于当前 uplift 证据给出 `list-task-pool` / `recommend-tasks` 的命令模板
-- 这样用户不必先进 suite 页，也能先看到“为什么这类任务更容易拉开 bare / basic / full 差距”，以及下一步具体该怎么跑
-
-如果已经跑过 suite，后续只想基于已落盘的 eval JSON 与 run evidence 重渲 suite / compare / uplift 页面，可以用：
+如果需要官方判分，再把生成的 report 交给：
 
 ```powershell
-python -m repo_harness_lab.cli.main render-eval-report qwen-provider-multi-signal-uplift-suite
+python -m repo_harness_lab.cli.main grade-swebench-official <report-id> --model-name qwen-plus
 ```
 
-示例设计：
-- 第一题要求把 `README.md` 的标题更新为 `docs/target_title.txt` 中的目标标题。
-- 第二题要求根据任务输入同步 `config/release.env` 与 `docs/release_summary.md`。
-- `bare` 只会看到仓库树，不会拿到目标文件内容，也不会拿到任务输入。
-- `basic` 会拿到更多仓库上下文，但仍不会拿到 task inputs / verifier plan。
-- `full` 会拿到更多仓库上下文、task inputs 与 verifier plan，因此更容易在第二题上继续拉开差距。
-- 跑完后可以直接查看 `runtime/reports/uplift-dashboard.html`。
-- 用户依然可以自行传入任意任务；`recommend-tasks` 只是给“更适合做 uplift 展示”的任务一个优先级建议。
+## Hosted Portal 部署模板
 
-## 线上 live portal 部署
+如果你只是想保留一套单机 `hosted portal` 部署模板，请看：
 
-如果要把 live portal 真正挂到公网，让外部用户直接在网页里：
-
-- 输入任务
-- 填公开 Git 仓库地址
-- 在网页里拿到 `bare / basic / full` 结果
-
-请看：
-
-- `HOSTED_PORTAL_DEPLOYMENT.md`
+- `docs/deployment/HOSTED_PORTAL_DEPLOYMENT.md`
 - `examples/deployment/portal.env.example`
 - `examples/deployment/start_hosted_portal.sh`
 - `examples/deployment/repo-harness-lab-portal.service`
 - `examples/deployment/nginx.repo-harness-lab-portal.conf`
-
-

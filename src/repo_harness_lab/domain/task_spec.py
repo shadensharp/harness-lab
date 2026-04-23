@@ -56,9 +56,7 @@ class TaskSelectionTier(StrEnum):
 
 
 class HarnessProfile(StrEnum):
-    BARE = "bare"
-    BASIC = "basic"
-    FULL = "full"
+    CURRENT = "current"
     CUSTOM = "custom"
 
 

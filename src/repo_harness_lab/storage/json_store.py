@@ -90,4 +90,5 @@ def deserialize_summary(payload: dict[str, Any]) -> RunSummary:
         verifier_outcome=payload.get("verifier_outcome"),
         artifact_index=artifacts,
         notes=tuple(payload.get("notes", ())),
+        metadata=dict(payload.get("metadata", {})),
     )

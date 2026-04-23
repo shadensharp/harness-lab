@@ -19,7 +19,7 @@ from repo_harness_lab.tasks.intake_preview import build_task_intake_preview
 
 
 class TaskIntakePreviewTests(unittest.TestCase):
-    def test_build_task_intake_preview_shows_delivery_matrix_deltas_and_risks(self) -> None:
+    def test_build_task_intake_preview_shows_current_delivery_and_risks(self) -> None:
         with tempfile.TemporaryDirectory() as temp_root:
             root = Path(temp_root)
             repo_dir = root / 'repo'
@@ -87,31 +87,31 @@ class TaskIntakePreviewTests(unittest.TestCase):
                 'Same response contract: JSON only with summary and writes.',
                 preview['shared_task_information']['shared_prompt_items'],
             )
-            self.assertEqual(preview['harness_delivery_matrix']['bare']['context_file_count'], 0)
-            self.assertEqual(preview['harness_delivery_matrix']['bare']['included_input_names'], [])
+            self.assertEqual(preview['current_delivery']['profile'], 'current')
+            self.assertGreaterEqual(preview['current_delivery']['context_file_count'], 3)
             self.assertIn(
-                'Extra harness material: repository tree only (4 files discoverable).',
-                preview['harness_delivery_matrix']['bare']['additional_delivery_items'],
+                'Repository tree attached',
+                preview['current_delivery']['additional_delivery_items'][0],
             )
-            self.assertEqual(preview['harness_delivery_matrix']['basic']['context_files'][0], 'docs/release_contract.md')
-            self.assertIn('config/release.env', preview['harness_delivery_matrix']['basic']['context_files'])
-            self.assertIn('docs/release_summary.md', preview['harness_delivery_matrix']['basic']['context_files'])
-            self.assertEqual(preview['harness_delivery_matrix']['full']['included_input_names'], ['release_spec'])
-            self.assertEqual(preview['harness_delivery_matrix']['full']['included_verifier_steps'], ['release-env-check'])
+            self.assertEqual(preview['current_delivery']['context_files'][0], 'docs/release_contract.md')
+            self.assertIn('config/release.env', preview['current_delivery']['context_files'])
+            self.assertIn('docs/release_summary.md', preview['current_delivery']['context_files'])
+            self.assertEqual(preview['current_delivery']['included_input_names'], ['release_spec'])
+            self.assertEqual(preview['current_delivery']['included_verifier_steps'], ['release-env-check'])
             self.assertIn(
                 'Injected task inputs: release_spec',
-                preview['harness_delivery_matrix']['full']['additional_delivery_items'],
+                preview['current_delivery']['additional_delivery_items'],
             )
-            self.assertEqual(preview['profile_delta_summary'][0]['from_profile'], 'bare')
-            self.assertIn('context files: 0 -> 4 (+4)', preview['profile_delta_summary'][0]['summary_lines'])
-            self.assertIn('new task inputs: release_spec', preview['profile_delta_summary'][1]['summary_lines'])
-            self.assertIn('new verifier steps: release-env-check', preview['profile_delta_summary'][1]['summary_lines'])
+            self.assertIn(
+                'Will inject verifier steps: release-env-check',
+                preview['current_delivery']['notes'],
+            )
             self.assertIn('preview-intake', preview['suggested_commands']['preview_intake'])
             self.assertIn('run-intake-eval', preview['suggested_commands']['run_intake_eval'])
             self.assertGreater(preview['uplift_readiness']['recommendation_score'], 0)
             self.assertIn('repo_context', preview['uplift_readiness']['declared_harness_signals'])
             self.assertIn(
-                'Verifier plan is narrow, so the extra value of verifier-aware delivery may be harder to see.',
+                'Verifier plan is narrow, so completion evidence may stay weak.',
                 preview['risk_warnings'],
             )
 
@@ -161,11 +161,11 @@ class TaskIntakePreviewTests(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             self.assertEqual(payload['task_spec_preview']['task_id'], 'readme-preview')
             self.assertEqual(payload['task_spec_preview']['editable_paths'], ['README.md'])
-            self.assertEqual(payload['harness_delivery_matrix']['basic']['context_files'][0], 'docs/target_title.txt')
-            self.assertEqual(payload['harness_delivery_matrix']['full']['included_verifier_steps'], ['readme-title-check'])
+            self.assertEqual(payload['current_delivery']['context_files'][0], 'docs/target_title.txt')
+            self.assertEqual(payload['current_delivery']['included_verifier_steps'], ['readme-title-check'])
             self.assertIn('preview-intake', payload['suggested_commands']['preview_intake'])
             self.assertIn(
-                'The task mostly changes a single file, so harness differences may be less visually obvious.',
+                'The task mostly changes a single file, so context selection may matter less.',
                 payload['risk_warnings'],
             )
 
@@ -224,7 +224,7 @@ class TaskIntakePreviewTests(unittest.TestCase):
             self.assertIn('任务入口预览', html_text)
             self.assertIn('用户任务', html_text)
             self.assertIn('常用命令', html_text)
-            self.assertIn('交付差异', html_text)
+            self.assertIn('当前交付包', html_text)
             self.assertIn('任务约束', html_text)
             self.assertIn('推荐与风险', html_text)
             self.assertIn('preview-intake', html_text)

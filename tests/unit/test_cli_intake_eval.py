@@ -22,7 +22,7 @@ from repo_harness_lab.cli.main import main
 
 
 class CliIntakeEvalTests(unittest.TestCase):
-    def test_run_intake_eval_scaffolds_task_preview_and_runs_default_uplift_matrix(self) -> None:
+    def test_run_intake_eval_scaffolds_task_preview_and_runs_current_mode(self) -> None:
         runtime_root = Path(tempfile.mkdtemp()) / "runtime"
         intake_path = REPO_ROOT / "examples" / "intakes" / "provider_release_input_task_intake.json"
 
@@ -103,19 +103,16 @@ class CliIntakeEvalTests(unittest.TestCase):
         comparison_paths = [Path(item) for item in payload["artifacts"]["comparison_html_paths"]]
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(payload["suite_id"], "provider-release-input-sync-intake-uplift-suite")
+        self.assertEqual(payload["suite_id"], "provider-release-input-sync-intake-baseline-suite")
         self.assertEqual(payload["case_count"], 1)
-        self.assertEqual(profile_uplift["baseline_profile"], "bare")
-        self.assertEqual(profile_uplift["bare"]["pass_rate"], 0.0)
-        self.assertEqual(profile_uplift["basic"]["pass_rate"], 0.0)
-        self.assertEqual(profile_uplift["full"]["pass_rate"], 1.0)
-        self.assertEqual(profile_uplift["full"]["pass_rate_delta"], 1.0)
+        self.assertEqual(profile_uplift["baseline_profile"], "current")
+        self.assertEqual(profile_uplift["current"]["pass_rate"], 1.0)
+        self.assertEqual(profile_uplift["current"]["pass_rate_delta"], 0.0)
         self.assertTrue(task_path.exists())
         self.assertTrue(suite_path.exists())
         self.assertTrue(preview_html_path.exists())
         self.assertTrue(preview_json_path.exists())
-        self.assertEqual(len(comparison_paths), 3)
-        self.assertTrue(all(path.exists() for path in comparison_paths))
+        self.assertEqual(len(comparison_paths), 0)
 
         task_payload = json.loads(task_path.read_text(encoding="utf8"))
         suite_payload = json.loads(suite_path.read_text(encoding="utf8"))
@@ -126,31 +123,32 @@ class CliIntakeEvalTests(unittest.TestCase):
             task_payload["benchmark_metadata"]["harness_signals"],
             ["task_inputs", "multi_file_edit", "verifier_plan"],
         )
-        self.assertEqual(suite_payload["suite_id"], "provider-release-input-sync-intake-uplift-suite")
+        self.assertEqual(suite_payload["suite_id"], "provider-release-input-sync-intake-baseline-suite")
         self.assertEqual(suite_payload["cases"][0]["case_id"], "provider-release-input-sync")
         self.assertEqual(
             [item["label"] for item in suite_payload["cases"][0]["run_matrix"]],
-            ["qwen-bare", "qwen-basic", "qwen-full"],
+            ["qwen-current"],
+        )
+        self.assertEqual(
+            [item["harness_profile"] for item in suite_payload["cases"][0]["run_matrix"]],
+            ["current"],
         )
         self.assertEqual(
             suite_payload["cases"][0]["task_spec_ref"],
             str(task_path),
         )
         self.assertEqual(preview_payload['task_spec_preview']['task_id'], 'provider-release-input-sync')
-        self.assertIn('new task inputs: release_spec', preview_payload['profile_delta_summary'][1]['summary_lines'])
+        self.assertEqual(preview_payload['current_delivery']['included_input_names'], ['release_spec'])
         self.assertIn('run-intake-eval', preview_payload['suggested_commands']['run_intake_eval'])
         self.assertIn("Paper Lantern", html_report)
-        self.assertIn("同模型 Harness 抬升", html_report)
+        self.assertIn("基线对比", html_report)
         self.assertIn("用户任务", html_report)
-        self.assertIn("共同任务信息", html_report)
-        self.assertIn("三档额外交付", html_report)
+        self.assertIn("基线说明", html_report)
+        self.assertIn("当前结果", html_report)
         self.assertIn("任务输出", html_report)
-        self.assertIn("guess release spec from repo tree", html_report)
         self.assertIn("任务入口预览", preview_html)
-        self.assertIn("三档交付", preview_html)
+        self.assertIn("当前交付包", preview_html)
         self.assertIn("运行 Intake Eval", preview_html)
-        self.assertTrue(any("新增任务输入" in path.read_text(encoding="utf8") for path in comparison_paths))
-        self.assertTrue(any("Paper Lantern" in path.read_text(encoding="utf8") for path in comparison_paths))
 
     def test_run_intake_eval_for_policy_bundle_refreshes_portal_and_dashboard(self) -> None:
         runtime_root = Path(tempfile.mkdtemp()) / "runtime"
@@ -171,7 +169,7 @@ class CliIntakeEvalTests(unittest.TestCase):
             )
             if has_full_bundle:
                 payload = {
-                    "summary": "assemble policy bundle from full repo context",
+                    "summary": "assemble policy bundle from complete repo context",
                     "writes": [
                         {
                             "path": "docs/policy_notice.md",
@@ -238,37 +236,29 @@ class CliIntakeEvalTests(unittest.TestCase):
 
         self.assertEqual(exit_code, 0)
         self.assertEqual(portal_exit, 0)
-        self.assertEqual(payload["suite_id"], "provider-policy-bundle-sync-intake-uplift-suite")
-        self.assertEqual(profile_uplift["baseline_profile"], "bare")
-        self.assertEqual(profile_uplift["bare"]["pass_rate"], 0.0)
-        self.assertEqual(profile_uplift["basic"]["pass_rate"], 0.0)
-        self.assertEqual(profile_uplift["full"]["pass_rate"], 1.0)
-        self.assertEqual(profile_uplift["full"]["pass_rate_delta"], 1.0)
-        self.assertEqual(len(comparison_paths), 3)
-        self.assertTrue(all(path.exists() for path in comparison_paths))
+        self.assertEqual(payload["suite_id"], "provider-policy-bundle-sync-intake-baseline-suite")
+        self.assertEqual(profile_uplift["baseline_profile"], "current")
+        self.assertEqual(profile_uplift["current"]["pass_rate"], 1.0)
+        self.assertEqual(profile_uplift["current"]["pass_rate_delta"], 0.0)
+        self.assertEqual(len(comparison_paths), 0)
         self.assertIn("provider-policy-bundle-sync", html_report)
         self.assertIn("任务输出", html_report)
         self.assertIn("处理结果", html_report)
-        self.assertIn("共同任务信息", html_report)
-        self.assertIn("三档额外交付", html_report)
+        self.assertIn("基线说明", html_report)
+        self.assertIn("当前结果", html_report)
         self.assertIn("trust-ops@example.test", html_report)
         self.assertIn("根据政策资料包同步公告与上线清单", html_report)
         self.assertIn("同模型 Harness 结果页", uplift_html)
         self.assertIn("用户任务", uplift_html)
-        self.assertIn("共同任务信息", uplift_html)
-        self.assertIn("三档结果", uplift_html)
+        self.assertIn("当前结果", uplift_html)
         self.assertIn("trust-ops@example.test", uplift_html)
         self.assertIn("根据政策资料包同步公告与上线清单", uplift_html)
         self.assertIn("同模型 Harness 演示台", portal_html)
         self.assertIn("用户任务", portal_html)
-        self.assertIn("共同任务信息", portal_html)
-        self.assertIn("三档结果", portal_html)
+        self.assertIn("当前结果", portal_html)
         self.assertIn("根据政策资料包同步公告与上线清单", portal_html)
         self.assertIn("http://127.0.0.1:8765/harness-portal.html", portal_html)
         self.assertIn("python -m repo_harness_lab.cli.main serve-portal", portal_html)
-        self.assertTrue(any("上下文文件: 0 -&gt; 8 (+8)" in path.read_text(encoding="utf8") for path in comparison_paths))
-        self.assertTrue(any("trust-ops@example.test" in path.read_text(encoding="utf8") for path in comparison_paths))
-        self.assertTrue(any("trust-ops@example.test" in path.read_text(encoding="utf8") for path in comparison_paths))
         self.assertEqual(Path(portal_payload["uplift_dashboard_path"]), Path(artifacts["uplift_dashboard_path"]))
 
 if __name__ == "__main__":

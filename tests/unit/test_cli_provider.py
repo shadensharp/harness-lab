@@ -96,7 +96,7 @@ class CliProviderTests(unittest.TestCase):
                                 "--agent-api-key",
                                 "test-key",
                                 "--harness-profile",
-                                "full",
+                                "current",
                             ]
                         )
 

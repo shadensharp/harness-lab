@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import io
 import json
@@ -89,8 +89,8 @@ class CliRunsTests(unittest.TestCase):
             report_path = store.report_path("run-001")
 
             self.assertEqual(exit_code, 0)
-            self.assertIn("# Run run-001", report_text)
-            self.assertIn("Patch Preview", report_text)
+            self.assertIn("# 运行报告 run-001", report_text)
+            self.assertIn("## 补丁预览", report_text)
             self.assertTrue(report_path.exists())
             self.assertIn("generated.txt", report_path.read_text(encoding="utf8"))
 
@@ -215,9 +215,10 @@ class CliRunsTests(unittest.TestCase):
             self.assertIn("打开运行报告", dashboard_path.read_text(encoding="utf8"))
             self.assertTrue(uplift_path.exists())
             uplift_html = uplift_path.read_text(encoding="utf8")
-            self.assertIn("同模型 Harness 结果页", uplift_html)
-            self.assertIn("用户任务", uplift_html)
-            self.assertIn("三档结果", uplift_html)
+            self.assertIn("任务是什么", uplift_html)
+            self.assertIn("系统怎么决定这样做", uplift_html)
+            self.assertIn("最终结果是什么", uplift_html)
+            self.assertIn("还可以往下看什么细节", uplift_html)
             self.assertIn("推荐任务", uplift_html)
             self.assertIn("包含确定性 verifier 步骤，成败原因更容易解释", uplift_html)
             self.assertIn("Portal 试跑归档", uplift_html)
@@ -228,10 +229,10 @@ class CliRunsTests(unittest.TestCase):
             self.assertIn("demo-portal-archive-suite", uplift_archive_section)
             self.assertTrue(portal_path.exists())
             portal_html = portal_path.read_text(encoding="utf8")
-            self.assertIn("同模型 Harness 演示台", portal_html)
-            self.assertIn("用户任务", portal_html)
-            self.assertIn("三档结果", portal_html)
-            self.assertIn("更多证据", portal_html)
+            self.assertIn("任务是什么", portal_html)
+            self.assertIn("系统怎么决定这样做", portal_html)
+            self.assertIn("最终结果是什么", portal_html)
+            self.assertIn("还可以往下看什么细节", portal_html)
             self.assertIn("正式证据页", portal_html)
             self.assertIn("Portal 试跑归档", portal_html)
             portal_primary_section = portal_html.split("<h2>正式证据页</h2>", 1)[1].split("<h2>Portal 试跑归档</h2>", 1)[0]
@@ -280,6 +281,7 @@ class CliRunsTests(unittest.TestCase):
             self.assertEqual(payload["portal_url"], "https://demo.example.com/harness-portal.html")
             self.assertEqual(payload["public_base_url"], "https://demo.example.com")
             self.assertTrue(payload["hosted_mode"])
+            self.assertTrue(payload["template"].endswith("examples\\intakes\\portal_tetris_task_intake.json"))
 
     def test_show_events_show_verifier_results_compare_runs_json_and_html(self) -> None:
         with tempfile.TemporaryDirectory() as temp_root:
@@ -320,7 +322,7 @@ class CliRunsTests(unittest.TestCase):
                     {
                         "provider": "qwen",
                         "model": "qwen-plus",
-                        "harness_profile": "bare",
+                        "harness_profile": "current",
                         "context_file_count": 0,
                         "tree_entry_count": 2,
                         "truncated_file_count": 0,
@@ -354,7 +356,7 @@ class CliRunsTests(unittest.TestCase):
                     {
                         "provider": "qwen",
                         "model": "qwen-plus",
-                        "harness_profile": "basic",
+                        "harness_profile": "custom",
                         "context_file_count": 2,
                         "tree_entry_count": 2,
                         "truncated_file_count": 0,

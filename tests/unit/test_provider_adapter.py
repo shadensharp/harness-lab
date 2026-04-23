@@ -88,7 +88,7 @@ class StructuredEditAgentAdapterTests(unittest.TestCase):
             metadata=metadata or {},
         )
 
-    def test_full_profile_includes_context_and_returns_usage(self) -> None:
+    def test_current_profile_includes_context_and_returns_usage(self) -> None:
         with tempfile.TemporaryDirectory() as temp_root:
             repo_root = Path(temp_root)
             (repo_root / 'README.md').write_text('hello\n', encoding='utf8')
@@ -97,8 +97,8 @@ class StructuredEditAgentAdapterTests(unittest.TestCase):
             request = RunRequest(
                 run_id='run-001',
                 task_id=task.task_id,
-                agent_profile=AgentProfile(name='qwen-plus', provider='qwen', metadata={'harness_profile': 'full'}),
-                metadata={'harness_profile': 'full'},
+                agent_profile=AgentProfile(name='qwen-plus', provider='qwen', metadata={'harness_profile': 'current'}),
+                metadata={'harness_profile': 'current'},
             )
             provider = FakeProvider(
                 ProviderResponse(
@@ -126,7 +126,7 @@ class StructuredEditAgentAdapterTests(unittest.TestCase):
             self.assertEqual(result.events[1].event_type, EventType.MODEL_RESPONDED)
             self.assertEqual(result.notes, ('updated readme',))
 
-    def test_basic_profile_prefers_context_paths_from_task_metadata(self) -> None:
+    def test_custom_profile_prefers_context_paths_from_task_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temp_root:
             repo_root = Path(temp_root)
             (repo_root / 'README.md').write_text('hello\n', encoding='utf8')
@@ -140,8 +140,8 @@ class StructuredEditAgentAdapterTests(unittest.TestCase):
             request = RunRequest(
                 run_id='run-001b',
                 task_id=task.task_id,
-                agent_profile=AgentProfile(name='qwen-plus', provider='qwen', metadata={'harness_profile': 'basic'}),
-                metadata={'harness_profile': 'basic'},
+                agent_profile=AgentProfile(name='qwen-plus', provider='qwen', metadata={'harness_profile': 'custom'}),
+                metadata={'harness_profile': 'custom'},
             )
             provider = FakeProvider(
                 ProviderResponse(content=json.dumps({'summary': 'noop', 'writes': []}, ensure_ascii=False))
@@ -151,9 +151,9 @@ class StructuredEditAgentAdapterTests(unittest.TestCase):
             user_prompt = provider.messages[1].content
 
             self.assertIn('preferred contract context', user_prompt)
-            self.assertNotIn('gamma\n', user_prompt)
+            self.assertNotIn('Verifier plan:', user_prompt)
 
-    def test_bare_profile_limits_context(self) -> None:
+    def test_current_profile_can_disable_extra_context(self) -> None:
         with tempfile.TemporaryDirectory() as temp_root:
             repo_root = Path(temp_root)
             (repo_root / 'README.md').write_text('hello\n', encoding='utf8')
@@ -162,8 +162,22 @@ class StructuredEditAgentAdapterTests(unittest.TestCase):
             request = RunRequest(
                 run_id='run-002',
                 task_id=task.task_id,
-                agent_profile=AgentProfile(name='qwen-plus', provider='qwen', metadata={'harness_profile': 'bare'}),
-                metadata={'harness_profile': 'bare'},
+                agent_profile=AgentProfile(
+                    name='qwen-plus',
+                    provider='qwen',
+                    metadata={
+                        'harness_profile': 'current',
+                        'include_inputs': False,
+                        'include_verifier_plan': False,
+                        'max_context_files': 0,
+                    },
+                ),
+                metadata={
+                    'harness_profile': 'current',
+                    'include_inputs': False,
+                    'include_verifier_plan': False,
+                    'max_context_files': 0,
+                },
             )
             provider = FakeProvider(
                 ProviderResponse(content=json.dumps({'summary': 'noop', 'writes': []}, ensure_ascii=False))

@@ -129,6 +129,7 @@ class RunSummary:
     verifier_outcome: str | None = None
     artifact_index: tuple[ArtifactRef, ...] = ()
     notes: tuple[str, ...] = ()
+    metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.duration_ms is None and self.finished_at is not None:

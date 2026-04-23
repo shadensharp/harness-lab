@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import sys
 import unittest
@@ -9,6 +9,7 @@ SRC_ROOT = Path(__file__).resolve().parents[2] / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
+from repo_harness_lab.evals.benchmark_loader import JsonRepoBenchmarkLoader
 from repo_harness_lab.evals.loader import JsonEvalSuiteLoader
 from repo_harness_lab.tasks.intake import JsonTaskIntakeLoader, build_task_spec_from_intake
 from repo_harness_lab.tasks.loader import JsonTaskLoader
@@ -23,10 +24,13 @@ class ExampleAssetsTests(unittest.TestCase):
         single_suite_path = root / "examples" / "evals" / "qwen_provider_uplift_suite.json"
         multi_suite_path = root / "examples" / "evals" / "qwen_provider_multi_signal_uplift_suite.json"
         extended_suite_path = root / "examples" / "evals" / "qwen_provider_extended_uplift_suite.json"
+        benchmark_manifest_path = root / "examples" / "evals" / "repo_benchmark_sample_manifest.json"
         release_intake_path = root / "examples" / "intakes" / "provider_release_input_task_intake.json"
         policy_intake_path = root / "examples" / "intakes" / "provider_policy_bundle_task_intake.json"
+        tetris_intake_path = root / "examples" / "intakes" / "portal_tetris_task_intake.json"
 
         task_loader = JsonTaskLoader()
+        benchmark_loader = JsonRepoBenchmarkLoader()
         intake_loader = JsonTaskIntakeLoader()
         suite_loader = JsonEvalSuiteLoader()
         readme_task = task_loader.load(readme_task_path)
@@ -34,21 +38,29 @@ class ExampleAssetsTests(unittest.TestCase):
         policy_task = task_loader.load(policy_task_path)
         release_intake = intake_loader.load(release_intake_path)
         policy_intake = intake_loader.load(policy_intake_path)
+        tetris_intake = intake_loader.load(tetris_intake_path)
         scaffolded_release_task = build_task_spec_from_intake(release_intake)
         scaffolded_policy_task = build_task_spec_from_intake(policy_intake)
+        scaffolded_tetris_task = build_task_spec_from_intake(tetris_intake)
         single_suite = suite_loader.load(single_suite_path)
         multi_suite = suite_loader.load(multi_suite_path)
         extended_suite = suite_loader.load(extended_suite_path)
+        benchmark_suite = benchmark_loader.load(benchmark_manifest_path)
 
         self.assertTrue(Path(readme_task.repo_source.path_or_url).exists())
         self.assertTrue(Path(release_task.repo_source.path_or_url).exists())
         self.assertTrue(Path(policy_task.repo_source.path_or_url).exists())
+        self.assertTrue(Path(tetris_intake.repo_source.path_or_url).exists())
         self.assertEqual(len(single_suite.cases), 1)
         self.assertEqual(len(multi_suite.cases), 2)
         self.assertEqual(len(extended_suite.cases), 3)
         self.assertTrue(Path(single_suite.cases[0].task_spec_ref).exists())
         self.assertTrue(all(Path(case.task_spec_ref).exists() for case in multi_suite.cases))
         self.assertTrue(all(Path(case.task_spec_ref).exists() for case in extended_suite.cases))
+        self.assertEqual(benchmark_suite.benchmark_id, "repo-benchmark-sample")
+        self.assertEqual(len(benchmark_suite.cases), 2)
+        self.assertEqual(benchmark_suite.metric_name, "task_pass_rate")
+        self.assertTrue(all(Path(case.task.repo_source.path_or_url).exists() for case in benchmark_suite.cases))
         self.assertEqual(len(single_suite.cases[0].run_matrix), 3)
         self.assertTrue(all(len(case.run_matrix) == 3 for case in multi_suite.cases))
         self.assertTrue(all(len(case.run_matrix) == 3 for case in extended_suite.cases))
@@ -76,9 +88,12 @@ class ExampleAssetsTests(unittest.TestCase):
         self.assertIn('repo_context', scaffolded_policy_task.benchmark_metadata.harness_signals)
         self.assertIn('multi_file_edit', scaffolded_policy_task.benchmark_metadata.harness_signals)
         self.assertIn('verifier_plan', scaffolded_policy_task.benchmark_metadata.harness_signals)
+        self.assertEqual(tetris_intake.task_id, 'portal-tetris-demo')
+        self.assertIn('Tetris', tetris_intake.title)
+        self.assertEqual(scaffolded_tetris_task.task_id, 'portal-tetris-demo')
+        self.assertEqual(scaffolded_tetris_task.success_criteria.required_verifier_steps, ('tetris-unit-tests',))
+        self.assertEqual(set(scaffolded_tetris_task.benchmark_metadata.harness_signals), {'repo_context', 'verifier_plan'})
 
 
 if __name__ == "__main__":
     unittest.main()
-
-

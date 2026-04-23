@@ -37,6 +37,8 @@ class CliMainTests(unittest.TestCase):
 
         template_payload = json.loads(template_buffer.getvalue())
         self.assertEqual(template_exit, 0)
+        self.assertEqual(template_payload['task_id'], 'portal-tetris-demo')
+        self.assertIn('Tetris', template_payload['title'])
         self.assertIn('business_request', template_payload)
         self.assertIn('acceptance_checks', template_payload)
 

@@ -36,8 +36,8 @@ class FailureReportingTests(unittest.TestCase):
         markdown = MarkdownReporter().render_run_record(record)
         html = HtmlReporter().render_run_record(record)
 
-        self.assertIn("## Failure Summary", markdown)
-        self.assertIn("readme-check: failed", markdown)
+        self.assertIn("## 失败摘要", markdown)
+        self.assertIn("readme-check：失败", markdown)
         self.assertIn("失败摘要", html)
         self.assertIn("readme-check: failed", html)
         self.assertIn("README title mismatch", html)

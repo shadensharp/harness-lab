@@ -1,0 +1,1 @@
+{"instance_id":"django__django-10001","repo":"django/django","base_commit":"abc1234","problem_statement":"Fix the failing behavior in the admin changelist.","hints_text":"Focus on the queryset construction.","FAIL_TO_PASS":["tests/admin_views/test_changelist.py::test_regression"],"PASS_TO_PASS":["tests/admin_views/test_actions.py::test_existing_behavior"]}

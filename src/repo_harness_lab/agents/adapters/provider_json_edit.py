@@ -19,7 +19,7 @@ BINARY_SENTINEL = b"\x00"
 DEFAULT_SYSTEM_PROMPT = (
     "You are a repository task execution model inside a harness. "
     "Return only valid JSON with keys summary and writes. "
-    "Each write must contain path and full file content. "
+    "Each write must contain path and complete file content. "
     "Do not wrap the JSON in markdown fences."
 )
 
@@ -265,8 +265,8 @@ class StructuredEditAgentAdapter(BaseAgentAdapter):
                 success_text,
                 "Response contract:",
                 "Return JSON only with this shape:",
-                '{"summary": "short explanation", "writes": [{"path": "relative/path", "content": "full file content"}]}',
-                "Use relative repository paths. For modified files, return the full updated file content.",
+                '{"summary": "short explanation", "writes": [{"path": "relative/path", "content": "complete file content"}]}',
+                "Use relative repository paths. For modified files, return the complete updated file content.",
                 context_text,
             ]
         )
@@ -304,21 +304,7 @@ def _resolve_harness_profile(request: RunRequest) -> HarnessProfile:
 
 def _snapshot_settings(harness_profile: HarnessProfile, metadata: Mapping[str, Any]) -> SnapshotSettings:
     defaults = {
-        HarnessProfile.BARE: SnapshotSettings(
-            include_tree=True,
-            include_inputs=False,
-            include_verifier_plan=False,
-            max_context_files=0,
-            max_file_chars=0,
-        ),
-        HarnessProfile.BASIC: SnapshotSettings(
-            include_tree=True,
-            include_inputs=False,
-            include_verifier_plan=False,
-            max_context_files=4,
-            max_file_chars=4000,
-        ),
-        HarnessProfile.FULL: SnapshotSettings(
+        HarnessProfile.CURRENT: SnapshotSettings(
             include_tree=True,
             include_inputs=True,
             include_verifier_plan=True,
@@ -519,3 +505,144 @@ def _int_override(metadata: Mapping[str, Any], key: str, default: int) -> int:
     if key not in metadata:
         return default
     return int(metadata[key])
+
+
+def build_prompt_preview_payload(
+    task: TaskSpec,
+    *,
+    repo_root: Path | None,
+    harness_profile: HarnessProfile,
+    metadata: Mapping[str, Any] | None = None,
+    labels: tuple[str, ...] = (),
+    system_prompt: str | None = None,
+) -> dict[str, Any]:
+    settings = _snapshot_settings(harness_profile, dict(metadata or {}))
+    tree_entries = _workspace_tree(repo_root, max_entries=settings.max_tree_entries) if repo_root is not None and repo_root.exists() and settings.include_tree else ()
+    tree_section = ""
+    if tree_entries:
+        tree_section = "\n".join(["Repository tree:", *[f"- {entry}" for entry in tree_entries]])
+
+    file_sections: list[str] = []
+    truncated_file_count = 0
+    selected_context_files: list[str] = []
+    if repo_root is not None and repo_root.exists() and settings.max_context_files > 0:
+        selected_paths = _select_context_files(task, repo_root, max_files=settings.max_context_files)
+        for path in selected_paths:
+            relative = path.relative_to(repo_root).as_posix()
+            selected_context_files.append(relative)
+            content, truncated = _read_text_context(path, settings.max_file_chars)
+            if truncated:
+                truncated_file_count += 1
+            file_sections.append(
+                "\n".join(
+                    [
+                        f"File: {relative}",
+                        "```text",
+                        content,
+                        "```",
+                    ]
+                )
+            )
+
+    input_section = ""
+    included_input_names: tuple[str, ...] = ()
+    if settings.include_inputs and not task.inputs.is_empty:
+        rendered_inputs = []
+        for item in task.inputs.items:
+            line = f"- {item.name} ({item.kind.value})"
+            if item.description:
+                line += f": {item.description}"
+            if item.kind is TaskInputKind.TEXT and item.content:
+                line += f"\n  content: {item.content}"
+            rendered_inputs.append(line)
+        input_section = "\n".join(["Task inputs:", *rendered_inputs])
+        included_input_names = tuple(item.name for item in task.inputs.items)
+
+    verifier_section = ""
+    included_verifier_steps: tuple[str, ...] = ()
+    if settings.include_verifier_plan and task.verifier_plan.steps:
+        rendered_steps = []
+        for step in task.verifier_plan.steps:
+            command_text = " ".join(step.command) if step.command else ""
+            rendered = f"- {step.name} ({step.kind.value})"
+            if command_text:
+                rendered += f": {command_text}"
+            rendered_steps.append(rendered)
+        verifier_section = "\n".join(["Verifier plan:", *rendered_steps])
+        included_verifier_steps = tuple(step.name for step in task.verifier_plan.steps)
+
+    sections = [section for section in (tree_section, input_section, verifier_section, "\n\n".join(file_sections)) if section]
+    workspace_context = "\n\n".join(sections)
+
+    success_criteria = []
+    if task.success_criteria.required_verifier_steps:
+        success_criteria.append(
+            f"required_verifier_steps={', '.join(task.success_criteria.required_verifier_steps)}"
+        )
+    if task.success_criteria.changed_files:
+        success_criteria.append(f"changed_files={', '.join(task.success_criteria.changed_files)}")
+    if task.success_criteria.behavioral_checks:
+        success_criteria.append(
+            f"behavioral_checks={'; '.join(task.success_criteria.behavioral_checks)}"
+        )
+
+    constraint_lines = [
+        f"allow_network={task.constraints.allow_network}",
+        f"editable_paths={', '.join(task.constraints.editable_paths) or '<any>'}",
+        f"forbidden_paths={', '.join(task.constraints.forbidden_paths) or '<none>'}",
+        f"allowed_tools={', '.join(task.constraints.allowed_tools) or '<none>'}",
+    ]
+    if task.constraints.max_runtime_seconds is not None:
+        constraint_lines.append(f"max_runtime_seconds={task.constraints.max_runtime_seconds}")
+    if task.constraints.max_cost_usd is not None:
+        constraint_lines.append(f"max_cost_usd={task.constraints.max_cost_usd}")
+
+    labels_text = ", ".join(labels) or "<none>"
+    success_text = "\n".join(f"- {item}" for item in success_criteria) or "- <none>"
+    context_text = workspace_context or "No repository context was attached for this harness profile."
+    repo_root_label = str(repo_root) if repo_root is not None else task.repo_source.path_or_url
+    response_contract = '{"summary": "short explanation", "writes": [{"path": "relative/path", "content": "complete file content"}]}'
+    user_prompt = "\n\n".join(
+        [
+            "Repository task:",
+            f"- task_id: {task.task_id}",
+            f"- title: {task.title}",
+            f"- task_type: {task.task_type.value}",
+            f"- harness_profile: {harness_profile.value}",
+            f"- repo_root: {repo_root_label}",
+            f"- agent_labels: {labels_text}",
+            "Description:",
+            task.description,
+            "Constraints:",
+            "\n".join(f"- {item}" for item in constraint_lines),
+            "Success criteria:",
+            success_text,
+            "Response contract:",
+            "Return JSON only with this shape:",
+            response_contract,
+            "Use relative repository paths. For modified files, return the complete updated file content.",
+            context_text,
+        ]
+    )
+    return {
+        "system_prompt": system_prompt or DEFAULT_SYSTEM_PROMPT,
+        "user_prompt": user_prompt,
+        "workspace_context": workspace_context,
+        "constraint_lines": constraint_lines,
+        "success_criteria_lines": success_criteria,
+        "response_contract": response_contract,
+        "selected_context_files": list(selected_context_files),
+        "tree_preview": list(tree_entries),
+        "tree_entry_count": len(tree_entries),
+        "context_file_count": len(selected_context_files),
+        "truncated_file_count": truncated_file_count,
+        "includes_repo_tree": settings.include_tree,
+        "included_input_names": list(included_input_names),
+        "included_verifier_steps": list(included_verifier_steps),
+        "shared_prompt_sections": [
+            "task_brief",
+            "constraints",
+            "success_criteria",
+            "response_contract",
+        ],
+    }

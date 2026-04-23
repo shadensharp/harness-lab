@@ -1,100 +1,115 @@
 # Repo Harness Lab
 
-一个面向仓库任务的本地优先 Agent Harness：把业务请求整理成结构化任务，在隔离工作区里执行，使用确定性验证做验收，并把运行证据沉淀为可回放、可对比的报告。这个项目正在扩展完善
+[中文说明](README.zh-CN.md)
 
-## 项目在解决什么问题
+License: MIT
 
-很多“代码 Agent Demo”只能展示某次碰巧成功，但很难回答下面几个工程问题：
+Repo Harness Lab is a local-first harness for real repository tasks. It turns ambiguous requests into pinned, auditable jobs, runs them in isolated workspace copies, verifies them deterministically, and keeps the evidence needed to explain what happened.
 
-- 任务到底怎么定义，成功标准是什么
-- Agent 看到了哪些上下文，哪些信息是结构化注入的
-- 修改发生在什么工作区里，能不能安全回放
-- 结果为什么算通过或失败
-- 同一个模型在不同 harness 配置下，差异到底来自哪里
+## What The Task Is
 
-这个项目的目标，就是把这些问题都工程化落地，而不是只靠一次性的 prompt 拼接。
+This project is about real repository work, not a lucky one-off coding demo.
 
-## 当前能力
+- The input is a real repository task, not just a chat prompt.
+- The system cares about repository revision, editable scope, acceptance rules, and replayability.
+- The goal is to study the harness layer behind repository agents, not the chat layer around them.
+- The questions are practical: what was the task, what did the model see, why did it pass or fail, and which result came from an internal verifier versus an external official scorer.
 
-- `Task Intake -> TaskSpec`：先整理业务请求，再稳定生成运行协议
-- 本地隔离工作区：在副本里执行任务，避免直接污染源仓库
-- 确定性验收：优先通过 verifier 而不是主观打分判断成功与否
-- 结构化留证：保存 summary、events、diff、verifier 结果和报告
-- 同模型多档对比：支持 `bare / basic / full` 三档 harness profile
-- 可浏览报告：支持 run report、comparison、eval、dashboard 和 live portal
+## How The System Decides This
 
-## 环境要求
+The system turns loose requests into a bounded task package before execution.
+
+- It maps intake or benchmark manifests into structured repository tasks.
+- It pins repository source, edit scope, expected changed files, context files, and verifier steps.
+- It can materialize SWE-bench-style instance files into runnable manifests.
+- It keeps benchmark metadata and separates internal diagnostics from official benchmark semantics.
+
+## How Execution Actually Works
+
+Execution follows a fixed chain instead of editing the source repository directly.
+
+1. Materialize the task into a repository task with a pinned source and acceptance rule.
+2. Copy the target repository into an isolated workspace.
+3. Run the model inside that workspace copy.
+4. Execute deterministic verifier commands.
+5. If an external conclusion is needed, hand the saved report to the official SWE-bench scorer.
+
+## What Evidence The System Keeps
+
+Each run is designed to leave enough evidence to explain the result.
+
+- Workspace execution record
+- `patch.diff`
+- Trace events
+- Verifier outputs
+- Rendered run and eval reports
+- Official scorer artifacts when external grading is enabled
+
+Generated evidence snapshots from saved local runs:
+
+| Benchmark suite evidence | Official scorer evidence |
+| --- | --- |
+| ![Benchmark suite evidence](docs/assets/readme/swebench-benchmark-demo.png) | ![Official scorer evidence](docs/assets/readme/official-swebench-demo.png) |
+
+![Uplift dashboard evidence](docs/assets/readme/uplift-dashboard-demo.png)
+
+## What The Current Result Means
+
+The current public story is a research story, not a product launch story.
+
+- Current public lane: external repository benchmark execution on official repositories
+- Priority track: SWE-bench Verified
+- Default experiment shape: one `current` run, optionally compared against a saved baseline
+- Current conclusion: the official scoring path is wired end to end; the main blocker is still reliable production of useful, non-empty patches on real benchmark tasks
+
+## What You Can Inspect Next
+
+If you want to inspect the system quickly, start here.
+
+Requirements:
 
 - Python `3.11+`
-- Windows / macOS / Linux 均可，本仓库当前主要以本地运行方式为主
-- 如果要跑外部 provider 示例，需要自己准备对应 API Key 环境变量
+- Windows, macOS, or Linux
+- A provider API key for real model runs
 
-## 快速开始
+Set up the project:
 
-在项目根目录执行：
-
-```powershell
+```bash
 python -m venv .venv
-.venv\Scripts\Activate.ps1
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+# macOS/Linux: source .venv/bin/activate
 python -m pip install -U pip
 python -m pip install -e .[dev]
+python -m repo_harness_lab.cli.main show-settings
 ```
 
-如果你只想确认 CLI 已安装成功，可以先执行：
+Preview the default single-task intake, then run it:
 
-```powershell
-repo-harness-lab show-settings
+```bash
+python -m repo_harness_lab.cli.main preview-intake examples/intakes/portal_tetris_task_intake.json --format both
+python -m repo_harness_lab.cli.main run-intake-eval examples/intakes/portal_tetris_task_intake.json --provider qwen --model qwen-plus --api-key-env DASHSCOPE_API_KEY
 ```
 
-## 常用命令
+Run the benchmark-to-official chain:
 
-查看 intake 模板：
-
-```powershell
-repo-harness-lab show-task-intake-template
+```bash
+python -m repo_harness_lab.cli.main export-swebench-manifest examples/benchmarks/swe_bench_sample_instances.jsonl runtime/tmp/swe_bench_sample.manifest.json --benchmark-id swe-bench-sample --metric-name resolved_rate --default-verifier-command-json "[\"python\", \"-m\", \"pytest\", \"-q\"]"
+python -m repo_harness_lab.cli.main run-benchmark-eval runtime/tmp/swe_bench_sample.manifest.json --provider qwen --model qwen-plus --api-key-env DASHSCOPE_API_KEY
+python -m repo_harness_lab.cli.main grade-swebench-official <report-id> --model-name qwen-plus
 ```
 
-预览一份 intake 会如何映射成任务和三档 harness 交付：
+Useful docs:
 
-```powershell
-repo-harness-lab preview-intake examples/intakes/provider_release_input_task_intake.json --format both
-```
+- [External benchmark lane](docs/benchmarks/EXTERNAL_BENCHMARK_LANE.md)
+- [Official SWE-bench evaluation](docs/benchmarks/SWEBENCH_OFFICIAL_EVALUATION.md)
+- [Examples](examples/README.md)
 
-直接从 intake 跑同模型 `bare / basic / full` 对比：
+Important boundaries:
 
-```powershell
-repo-harness-lab run-intake-eval examples/intakes/provider_release_input_task_intake.json --provider qwen --model qwen-plus --api-key-env DASHSCOPE_API_KEY
-```
+- This is not a general-purpose chat coding assistant.
+- Internal diagnostics are not the same thing as official benchmark scores.
+- Local runtime outputs, copied workspaces, private logs, and environment files are intentionally kept out of Git history.
 
-启动本地 live portal：
+## License
 
-```powershell
-repo-harness-lab serve-portal --host 127.0.0.1 --port 8765
-```
-
-重渲最近运行的 dashboard / portal：
-
-```powershell
-repo-harness-lab render-dashboard --limit 20
-repo-harness-lab render-uplift-dashboard --limit 20
-repo-harness-lab render-portal --limit 20
-```
-
-## 目录说明
-
-- `src/repo_harness_lab/`：正式源码
-- `tests/`：单元测试与夹具
-- `examples/`：示例仓库、任务、intake 和 eval 套件
-- `SYSTEM_ARCHITECTURE.md`：系统骨架与主链路
-- `REPO_STRUCTURE.md`：目录结构与模块分层说明
-- `DOMAIN_MODELS.md`：领域对象设计
-- `CORE_INTERFACES.md`：核心协议接口设计
-- `HARNESS_EVIDENCE_REPORT.md`：项目为什么能证明 harness uplift 的说明
-- `HOSTED_PORTAL_DEPLOYMENT.md`：hosted portal 的部署说明
-
-## 测试
-
-```powershell
-python -m unittest discover -s tests/unit -p "test_*.py"
-python -m compileall src tests examples
-```
+MIT. See [LICENSE](LICENSE).

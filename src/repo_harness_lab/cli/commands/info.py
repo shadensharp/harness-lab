@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import json
@@ -53,7 +53,7 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
 
     preview_intake = subparsers.add_parser(
         'preview-intake',
-        help='Preview how a business task intake maps into TaskSpec fields and bare/basic/full harness delivery',
+        help='Preview how a business task intake maps into TaskSpec fields and the current harness package',
     )
     preview_intake.add_argument('source')
     preview_intake.add_argument('--format', choices=('json', 'html', 'both'), default='json')
@@ -106,6 +106,11 @@ def handle_show_task(args: argparse.Namespace) -> int:
 
 def handle_show_task_intake_template(args: argparse.Namespace) -> int:
     del args
+    settings = load_settings()
+    example_template_path = settings.paths.examples_dir / 'intakes' / 'portal_tetris_task_intake.json'
+    if example_template_path.exists():
+        print_json(json.loads(example_template_path.read_text(encoding='utf8')))
+        return 0
     print_json(default_task_intake_template())
     return 0
 
